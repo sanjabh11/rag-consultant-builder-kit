@@ -50,9 +50,22 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
 
       if (error) throw error;
 
+      // Step 2: Get public file URL
+      const fileUrl = supabase.storage.from("project-docs").getPublicUrl(path).data.publicUrl;
+
+      // Step 3: Call edge function to chunk/index
+      const resp = await supabase.functions.invoke("ingest-doc-chunks", {
+        body: {
+          fileUrl,
+          fileName: file.name,
+          projectId,
+        }
+      });
+      if (resp.error) throw new Error(resp.error.message || 'Failed to index document');
+
       toast({
         title: "File uploaded",
-        description: `${file.name} uploaded successfully.`,
+        description: `${file.name} uploaded and indexed successfully.`,
       });
 
       onUploadSuccess?.();
