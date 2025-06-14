@@ -8,6 +8,8 @@ import { useRAGQueries, useCreateRAGQuery } from '@/hooks/useRAGQueries';
 import { MessageSquare, Send, Bot, User, Clock, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useEmbedding } from "@/hooks/useEmbedding";
+import { useRelevantChunks } from "@/hooks/useRelevantChunks";
 
 interface RAGChatInterfaceProps {
   projectId: string;
@@ -21,45 +23,69 @@ interface RetrievedChunk {
 
 const RAGChatInterface: React.FC<RAGChatInterfaceProps> = ({ projectId }) => {
   const [query, setQuery] = useState('');
+  const [retrievedChunks, setRetrievedChunks] = useState<any[]>([]);
   const { data: queries, isLoading } = useRAGQueries(projectId);
   const createQuery = useCreateRAGQuery();
   const { toast } = useToast();
+  const { getEmbedding, isLoading: embeddingLoading } = useEmbedding();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
 
+    setIsProcessing(true);
     const startTime = Date.now();
-    
+
     try {
-      // Call Gemini API through our edge function
+      // 1. Get query embedding
+      const embedding = await getEmbedding(query);
+      if (!embedding) throw new Error("Failed to get embedding for query.");
+
+      // 2. Retrieve relevant chunks
+      const { data: chunks, error: chunkError } = await (supabase as any)
+        .from("document_chunks")
+        .select("id, chunk_text, file_name, file_path, chunk_index, embedding, created_at")
+        .eq("project_id", projectId)
+        .order("embedding", {
+          ascending: true,
+          // @ts-ignore
+          queryVector: embedding,
+          // @ts-ignore
+          similarity: "cosine",
+        })
+        .limit(5);
+
+      if (chunkError) throw chunkError;
+      setRetrievedChunks(chunks);
+
+      // 3. Form context for Gemini
+      const context = chunks?.map((c: any) => c.chunk_text).join("\n\n") ?? '';
+      const prompt = `Based on the following context, answer the user's question. If the context does not answer the question, simply say you do not have enough information.\n\nContext:\n${context}\n\nQuestion: ${query}`;
+
+      // 4. Call Gemini API through our edge function
       const { data: geminiResponse, error } = await supabase.functions.invoke('gemini-llm', {
         body: {
-          prompt: `Please provide a helpful response to this query: ${query}`,
+          prompt,
           temperature: 0.7,
           maxTokens: 1000,
         },
       });
 
-      if (error) {
-        throw new Error(error.message || 'Failed to get response from Gemini');
-      }
-
-      if (!geminiResponse) {
-        throw new Error('No response received from Gemini API');
-      }
-
-      // Simulate retrieved chunks for now (in production, this would come from vector search)
-      const simulatedChunks = [
-        { id: 'chunk1', text: 'Sample document chunk related to the query...', score: 0.95 },
-        { id: 'chunk2', text: 'Another relevant document section...', score: 0.87 },
-      ];
+      if (error) throw new Error(error.message || 'Failed to get response from Gemini');
+      if (!geminiResponse) throw new Error('No response received from Gemini API');
 
       await createQuery.mutateAsync({
         project_id: projectId,
         query_text: query,
         response_text: geminiResponse.text,
-        retrieved_chunks: simulatedChunks,
+        retrieved_chunks: (chunks || []).map((c: any) => ({
+          id: c.id,
+          text: c.chunk_text,
+          file_name: c.file_name,
+          file_path: c.file_path,
+          score: null // Optionally, you can add cosine similarity score if returned from DB
+        })),
         llm_provider: 'gemini',
         tokens_used: geminiResponse.tokensUsed || 0,
         response_time_ms: Date.now() - startTime,
@@ -68,7 +94,7 @@ const RAGChatInterface: React.FC<RAGChatInterfaceProps> = ({ projectId }) => {
       setQuery('');
       toast({
         title: "Query processed",
-        description: "Your question has been answered using Gemini AI.",
+        description: "Your question has been answered using RAG + Gemini AI.",
       });
     } catch (error) {
       console.error('RAG query error:', error);
@@ -77,6 +103,8 @@ const RAGChatInterface: React.FC<RAGChatInterfaceProps> = ({ projectId }) => {
         description: error instanceof Error ? error.message : "Failed to process query. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -191,11 +219,11 @@ const RAGChatInterface: React.FC<RAGChatInterfaceProps> = ({ projectId }) => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Ask a question about your documents..."
-              disabled={createQuery.isPending}
+              disabled={isProcessing || embeddingLoading}
               className="flex-1"
             />
-            <Button type="submit" disabled={createQuery.isPending || !query.trim()}>
-              {createQuery.isPending ? (
+            <Button type="submit" disabled={isProcessing || embeddingLoading || !query.trim()}>
+              {(isProcessing || embeddingLoading) ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
               ) : (
                 <Send className="h-4 w-4" />
