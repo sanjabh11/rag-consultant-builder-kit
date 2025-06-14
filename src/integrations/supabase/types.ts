@@ -591,6 +591,50 @@ export type Database = {
           },
         ]
       }
+      document_chunks: {
+        Row: {
+          chunk_index: number
+          chunk_text: string
+          created_at: string
+          document_id: string | null
+          embedding: string | null
+          id: string
+          metadata: Json | null
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          chunk_index: number
+          chunk_text: string
+          created_at?: string
+          document_id?: string | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          chunk_index?: number
+          chunk_text?: string
+          created_at?: string
+          document_id?: string | null
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_chunks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ai_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_collections: {
         Row: {
           created_at: string
