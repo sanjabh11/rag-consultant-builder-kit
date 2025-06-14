@@ -9,6 +9,10 @@ import AIProjects from "./pages/AIProjects";
 import WorkflowBuilder from "./components/WorkflowBuilder";
 import LLMConfigPanel from "./components/LLMConfigPanel";
 import NotFound from "./pages/NotFound";
+import Auth from "./pages/Auth";
+import { AuthProvider } from "./hooks/useAuth";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
 
 const queryClient = new QueryClient();
 
@@ -18,13 +22,18 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/ai-projects" element={<AIProjects />} />
-          <Route path="/workflows" element={<WorkflowBuilder />} />
-          <Route path="/llm-config" element={<LLMConfigPanel />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Layout><Index /></Layout>} />
+            <Route path="/auth" element={<Auth />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/ai-projects" element={<Layout><AIProjects /></Layout>} />
+              <Route path="/workflows" element={<Layout><WorkflowBuilder /></Layout>} />
+              <Route path="/llm-config" element={<Layout><LLMConfigPanel /></Layout>} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

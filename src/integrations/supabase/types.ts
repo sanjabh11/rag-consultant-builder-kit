@@ -212,6 +212,33 @@ export type Database = {
           },
         ]
       }
+      apo_analysis_cache: {
+        Row: {
+          analysis_data: Json
+          created_at: string
+          id: string
+          occupation_code: string
+          occupation_title: string
+          updated_at: string
+        }
+        Insert: {
+          analysis_data: Json
+          created_at?: string
+          id?: string
+          occupation_code: string
+          occupation_title: string
+          updated_at?: string
+        }
+        Update: {
+          analysis_data?: Json
+          created_at?: string
+          id?: string
+          occupation_code?: string
+          occupation_title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_alerts: {
         Row: {
           alert_type: Database["public"]["Enums"]["alert_type"]
@@ -1300,6 +1327,33 @@ export type Database = {
           platform?: Database["public"]["Enums"]["platform_type"]
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_selections: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          selections: Json
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          selections?: Json
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          selections?: Json
+          updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
