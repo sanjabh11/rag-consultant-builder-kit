@@ -10,6 +10,7 @@ import { Brain, Plus, MessageSquare, Settings, Calendar, DollarSign, Zap, Databa
 import { CostBreakdown as CostBreakdownType } from '@/services/costEstimator';
 import DocumentUpload from "@/components/DocumentUpload";
 import { useProjectDocuments } from "@/hooks/useDocumentUpload";
+import { supabase } from "@/integrations/supabase/client";
 
 const AIProjects = () => {
   const [showWizard, setShowWizard] = useState(false);
