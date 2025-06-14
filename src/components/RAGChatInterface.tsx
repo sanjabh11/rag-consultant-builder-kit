@@ -13,6 +13,12 @@ interface RAGChatInterfaceProps {
   projectId: string;
 }
 
+interface RetrievedChunk {
+  id: string;
+  text: string;
+  score: number;
+}
+
 const RAGChatInterface: React.FC<RAGChatInterfaceProps> = ({ projectId }) => {
   const [query, setQuery] = useState('');
   const { data: queries, isLoading } = useRAGQueries(projectId);
@@ -65,6 +71,20 @@ In a production environment, this would integrate with your vLLM service running
     }
   };
 
+  const getRetrievedChunks = (chunks: any): RetrievedChunk[] => {
+    if (!chunks) return [];
+    if (Array.isArray(chunks)) return chunks;
+    if (typeof chunks === 'string') {
+      try {
+        const parsed = JSON.parse(chunks);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
   return (
     <Card className="h-[600px] flex flex-col">
       <CardHeader>
@@ -83,71 +103,75 @@ In a production environment, this would integrate with your vLLM service running
                 Start a conversation by asking a question about your documents.
               </div>
             ) : (
-              queries?.map((q) => (
-                <div key={q.id} className="space-y-3">
-                  {/* User Query */}
-                  <div className="flex items-start gap-3">
-                    <div className="bg-primary text-primary-foreground rounded-full p-2">
-                      <User className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="bg-muted p-3 rounded-lg">
-                        <p>{q.query_text}</p>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {new Date(q.created_at).toLocaleTimeString()}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bot Response */}
-                  {q.response_text && (
+              queries?.map((q) => {
+                const retrievedChunks = getRetrievedChunks(q.retrieved_chunks);
+                
+                return (
+                  <div key={q.id} className="space-y-3">
+                    {/* User Query */}
                     <div className="flex items-start gap-3">
-                      <div className="bg-blue-600 text-white rounded-full p-2">
-                        <Bot className="h-4 w-4" />
+                      <div className="bg-primary text-primary-foreground rounded-full p-2">
+                        <User className="h-4 w-4" />
                       </div>
                       <div className="flex-1">
-                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                          <p className="whitespace-pre-wrap">{q.response_text}</p>
+                        <div className="bg-muted p-3 rounded-lg">
+                          <p>{q.query_text}</p>
                         </div>
-                        <div className="flex items-center gap-4 mt-2">
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Zap className="h-3 w-3" />
-                            {q.tokens_used} tokens
-                          </div>
-                          {q.response_time_ms && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              {q.response_time_ms}ms
-                            </div>
-                          )}
-                          <Badge variant="secondary" className="text-xs">
-                            {q.llm_provider}
-                          </Badge>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {new Date(q.created_at).toLocaleTimeString()}
                         </div>
-                        {q.retrieved_chunks.length > 0 && (
-                          <div className="mt-2">
-                            <details className="text-xs">
-                              <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                                View retrieved chunks ({q.retrieved_chunks.length})
-                              </summary>
-                              <div className="mt-2 space-y-1">
-                                {q.retrieved_chunks.map((chunk: any, idx: number) => (
-                                  <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                                    <div className="font-medium">Chunk {idx + 1} (score: {chunk.score})</div>
-                                    <div className="text-muted-foreground truncate">{chunk.text}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </details>
-                          </div>
-                        )}
                       </div>
                     </div>
-                  )}
-                </div>
-              ))
+
+                    {/* Bot Response */}
+                    {q.response_text && (
+                      <div className="flex items-start gap-3">
+                        <div className="bg-blue-600 text-white rounded-full p-2">
+                          <Bot className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <p className="whitespace-pre-wrap">{q.response_text}</p>
+                          </div>
+                          <div className="flex items-center gap-4 mt-2">
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <Zap className="h-3 w-3" />
+                              {q.tokens_used} tokens
+                            </div>
+                            {q.response_time_ms && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                {q.response_time_ms}ms
+                              </div>
+                            )}
+                            <Badge variant="secondary" className="text-xs">
+                              {q.llm_provider}
+                            </Badge>
+                          </div>
+                          {retrievedChunks.length > 0 && (
+                            <div className="mt-2">
+                              <details className="text-xs">
+                                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                                  View retrieved chunks ({retrievedChunks.length})
+                                </summary>
+                                <div className="mt-2 space-y-1">
+                                  {retrievedChunks.map((chunk: RetrievedChunk, idx: number) => (
+                                    <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                                      <div className="font-medium">Chunk {idx + 1} (score: {chunk.score})</div>
+                                      <div className="text-muted-foreground truncate">{chunk.text}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </details>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
         </ScrollArea>
