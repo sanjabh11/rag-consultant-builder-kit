@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +8,8 @@ import RAGChatInterface from '@/components/RAGChatInterface';
 import CostBreakdown from '@/components/CostBreakdown';
 import { Brain, Plus, MessageSquare, Settings, Calendar, DollarSign, Zap, Database } from 'lucide-react';
 import { CostBreakdown as CostBreakdownType } from '@/services/costEstimator';
+import DocumentUpload from "@/components/DocumentUpload";
+import { useProjectDocuments } from "@/hooks/useDocumentUpload";
 
 const AIProjects = () => {
   const [showWizard, setShowWizard] = useState(false);
@@ -74,6 +75,7 @@ const AIProjects = () => {
   }
 
   if (selectedProject) {
+    // add file listing for current project & upload
     return (
       <div className="container mx-auto py-8">
         <div className="mb-6">
@@ -81,6 +83,15 @@ const AIProjects = () => {
             ← Back to Projects
           </Button>
         </div>
+        {/* Document Upload */}
+        <DocumentUpload
+          projectId={selectedProject}
+          onUploadSuccess={() => {
+            // Optionally, refresh files here if needed
+          }}
+        />
+        {/* Project Documents listing */}
+        <ProjectDocumentsList projectId={selectedProject} />
         <RAGChatInterface projectId={selectedProject} />
       </div>
     );
@@ -259,3 +270,44 @@ const AIProjects = () => {
 };
 
 export default AIProjects;
+
+const ProjectDocumentsList = ({ projectId }: { projectId: string }) => {
+  const { files, loading, fetchDocuments } = useProjectDocuments(projectId);
+
+  React.useEffect(() => {
+    fetchDocuments();
+    // eslint-disable-next-line
+  }, [projectId]);
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle>Project Documents</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <p className="text-muted-foreground">Loading...</p>
+        ) : files.length === 0 ? (
+          <p className="text-muted-foreground">No documents uploaded.</p>
+        ) : (
+          <ul className="space-y-2">
+            {files.map((file) => (
+              <li key={file.name}>
+                <a
+                  href={supabase.storage
+                    .from("project-docs")
+                    .getPublicUrl(`${projectId}/${file.name}`).data.publicUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  {file.name}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
