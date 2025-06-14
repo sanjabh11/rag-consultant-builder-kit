@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,7 @@ import ProjectCreationWizard from '@/components/ProjectCreationWizard';
 import RAGChatInterface from '@/components/RAGChatInterface';
 import CostBreakdown from '@/components/CostBreakdown';
 import { Brain, Plus, MessageSquare, Settings, Calendar, DollarSign, Zap, Database } from 'lucide-react';
+import { CostBreakdown as CostBreakdownType } from '@/services/costEstimator';
 
 const AIProjects = () => {
   const [showWizard, setShowWizard] = useState(false);
@@ -43,6 +45,18 @@ const AIProjects = () => {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
+  };
+
+  // Helper function to safely extract cost estimate from config
+  const getCostEstimate = (config: any): CostBreakdownType | null => {
+    if (!config || typeof config !== 'object') return null;
+    return config.cost_estimate || null;
+  };
+
+  // Helper function to safely extract infrastructure from config
+  const getInfrastructure = (config: any) => {
+    if (!config || typeof config !== 'object') return null;
+    return config.infrastructure || null;
   };
 
   if (showWizard) {
@@ -124,8 +138,8 @@ const AIProjects = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects?.map((project) => {
-            const costEstimate = project.config?.cost_estimate;
-            const infrastructure = project.config?.infrastructure;
+            const costEstimate = getCostEstimate(project.config);
+            const infrastructure = getInfrastructure(project.config);
             
             return (
               <Card key={project.id} className="hover:shadow-lg transition-shadow">

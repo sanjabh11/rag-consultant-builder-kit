@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { DollarSign, Loader2, Info } from 'lucide-react';
 import { CostBreakdown as CostBreakdownType } from '@/services/costEstimator';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface CostBreakdownProps {
   breakdown: CostBreakdownType | null;
@@ -83,81 +82,77 @@ const CostBreakdown: React.FC<CostBreakdownProps> = ({
   ];
 
   return (
-    <TooltipProvider>
-      <Card className={className}>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Monthly Cost Estimate
-            </div>
-            <Badge className={costLevel.color}>
-              {costLevel.level === 'free' ? 'Free Tier' : 
-               costLevel.level === 'low' ? 'Low Cost' :
-               costLevel.level === 'medium' ? 'Medium Cost' : 'High Cost'}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-primary">
-              {formatCurrency(breakdown.total)}
-            </div>
-            <p className="text-sm text-muted-foreground">per month</p>
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Monthly Cost Estimate
           </div>
+          <Badge className={costLevel.color}>
+            {costLevel.level === 'free' ? 'Free Tier' : 
+             costLevel.level === 'low' ? 'Low Cost' :
+             costLevel.level === 'medium' ? 'Medium Cost' : 'High Cost'}
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="text-center">
+          <div className="text-3xl font-bold text-primary">
+            {formatCurrency(breakdown.total)}
+          </div>
+          <p className="text-sm text-muted-foreground">per month</p>
+        </div>
 
-          {showDetails && (
-            <>
-              <Separator />
-              <div className="space-y-3">
-                {costItems.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">{item.label}</span>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="h-3 w-3 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="text-xs">{item.tooltip}</p>
-                        </TooltipContent>
-                      </Tooltip>
+        {showDetails && (
+          <>
+            <Separator />
+            <div className="space-y-3">
+              {costItems.map((item, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">{item.label}</span>
+                    <div className="group relative">
+                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                      <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-black text-white rounded whitespace-nowrap z-10">
+                        {item.tooltip}
+                      </div>
                     </div>
-                    <span className="text-sm font-medium">
-                      {formatCurrency(item.value)}
-                    </span>
                   </div>
-                ))}
+                  <span className="text-sm font-medium">
+                    {formatCurrency(item.value)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {breakdown.total === 0 && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-800">
+                  🎉 This configuration uses only free tier resources!
+                </p>
               </div>
+            )}
 
-              {breakdown.total === 0 && (
-                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
-                  <p className="text-sm text-green-800">
-                    🎉 This configuration uses only free tier resources!
-                  </p>
-                </div>
-              )}
+            {breakdown.total > 0 && breakdown.total < 50 && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-sm text-blue-800">
+                  💡 Great for pilots and small-scale deployments
+                </p>
+              </div>
+            )}
 
-              {breakdown.total > 0 && breakdown.total < 50 && (
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                  <p className="text-sm text-blue-800">
-                    💡 Great for pilots and small-scale deployments
-                  </p>
-                </div>
-              )}
-
-              {breakdown.total >= 500 && (
-                <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
-                  <p className="text-sm text-orange-800">
-                    ⚡ Production-scale deployment with dedicated resources
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </TooltipProvider>
+            {breakdown.total >= 500 && (
+              <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                <p className="text-sm text-orange-800">
+                  ⚡ Production-scale deployment with dedicated resources
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
