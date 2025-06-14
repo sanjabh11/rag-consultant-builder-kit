@@ -51,6 +51,54 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_projects: {
+        Row: {
+          compliance_flags: string[] | null
+          config: Json
+          created_at: string
+          domain: string
+          id: string
+          llm_provider: string | null
+          name: string
+          status: string
+          subdomain: string | null
+          tenant_id: string
+          token_budget: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          compliance_flags?: string[] | null
+          config?: Json
+          created_at?: string
+          domain: string
+          id?: string
+          llm_provider?: string | null
+          name: string
+          status?: string
+          subdomain?: string | null
+          tenant_id: string
+          token_budget?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          compliance_flags?: string[] | null
+          config?: Json
+          created_at?: string
+          domain?: string
+          id?: string
+          llm_provider?: string | null
+          name?: string
+          status?: string
+          subdomain?: string | null
+          tenant_id?: string
+          token_budget?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_usage: {
         Row: {
           cost: number | null
@@ -543,6 +591,47 @@ export type Database = {
           },
         ]
       }
+      document_collections: {
+        Row: {
+          created_at: string
+          document_count: number | null
+          id: string
+          last_ingested_at: string | null
+          name: string
+          namespace: string
+          project_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          document_count?: number | null
+          id?: string
+          last_ingested_at?: string | null
+          name: string
+          namespace: string
+          project_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          document_count?: number | null
+          id?: string
+          last_ingested_at?: string | null
+          name?: string
+          namespace?: string
+          project_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_collections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ai_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generated_websites: {
         Row: {
           about_section: Json
@@ -691,6 +780,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      llm_providers: {
+        Row: {
+          config: Json | null
+          cost_per_token: number | null
+          created_at: string
+          enabled: boolean | null
+          endpoint_url: string | null
+          id: string
+          name: string
+          provider_type: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          config?: Json | null
+          cost_per_token?: number | null
+          created_at?: string
+          enabled?: boolean | null
+          endpoint_url?: string | null
+          id?: string
+          name: string
+          provider_type: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          config?: Json | null
+          cost_per_token?: number | null
+          created_at?: string
+          enabled?: boolean | null
+          endpoint_url?: string | null
+          id?: string
+          name?: string
+          provider_type?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       orders: {
         Row: {
@@ -923,6 +1054,53 @@ export type Database = {
             columns: ["lesson_id"]
             isOneToOne: false
             referencedRelation: "lesson_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rag_queries: {
+        Row: {
+          created_at: string
+          id: string
+          llm_provider: string | null
+          project_id: string
+          query_text: string
+          response_text: string | null
+          response_time_ms: number | null
+          retrieved_chunks: Json | null
+          tokens_used: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          llm_provider?: string | null
+          project_id: string
+          query_text: string
+          response_text?: string | null
+          response_time_ms?: number | null
+          retrieved_chunks?: Json | null
+          tokens_used?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          llm_provider?: string | null
+          project_id?: string
+          query_text?: string
+          response_text?: string | null
+          response_time_ms?: number | null
+          retrieved_chunks?: Json | null
+          tokens_used?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rag_queries_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "ai_projects"
             referencedColumns: ["id"]
           },
         ]
@@ -1222,6 +1400,33 @@ export type Database = {
           name?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      workflow_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          domain: string
+          id: string
+          n8n_workflow: Json
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          domain: string
+          id?: string
+          n8n_workflow: Json
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          domain?: string
+          id?: string
+          n8n_workflow?: Json
+          name?: string
         }
         Relationships: []
       }
