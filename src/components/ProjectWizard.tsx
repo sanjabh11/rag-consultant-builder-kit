@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,8 +19,12 @@ import {
   CheckCircle,
   FileText,
   Users,
-  Building
+  Building,
+  Zap,
+  Database
 } from 'lucide-react';
+import { useCostEstimation } from '@/hooks/useCostEstimation';
+import CostBreakdown from '@/components/CostBreakdown';
 
 interface ProjectSpec {
   projectName: string;
@@ -36,6 +39,16 @@ interface ProjectSpec {
   llmProvider: string;
   budget: number;
   deploymentType: string;
+  // New cost-related fields
+  gpuProvider: string;
+  gpuCount: number;
+  gpuHoursPerDay: number;
+  vectorStore: string;
+  tokenBudget: number;
+  storageGb: number;
+  supabasePlan: 'free' | 'pro';
+  n8nMode: 'self_hosted' | 'cloud_free';
+  useK8s: boolean;
 }
 
 const ProjectWizard = () => {
@@ -50,13 +63,40 @@ const ProjectWizard = () => {
     throughput: 100,
     sla: '99.9',
     complianceFlags: [],
-    llmProvider: '',
+    llmProvider: 'llama3',
     budget: 1000,
-    deploymentType: 'cloud'
+    deploymentType: 'cloud',
+    // New defaults
+    gpuProvider: 'none',
+    gpuCount: 0,
+    gpuHoursPerDay: 24,
+    vectorStore: 'chroma',
+    tokenBudget: 100000,
+    storageGb: 50,
+    supabasePlan: 'free',
+    n8nMode: 'cloud_free',
+    useK8s: false,
   });
 
-  const totalSteps = 6;
+  const totalSteps = 7; // Added a cost optimization step
   const progressPercentage = (currentStep / totalSteps) * 100;
+
+  // Real-time cost estimation
+  const costInputs = useMemo(() => ({
+    gpu_provider: spec.gpuProvider,
+    gpu_count: spec.gpuCount,
+    gpu_hours_per_day: spec.gpuHoursPerDay,
+    vector_store: spec.vectorStore,
+    llm_provider: spec.llmProvider,
+    token_budget: spec.tokenBudget,
+    supabase_plan: spec.supabasePlan,
+    storage_gb: spec.storageGb,
+    bandwidth_gb: 10, // Default estimate
+    n8n_mode: spec.n8nMode,
+    use_k8s: spec.useK8s,
+  }), [spec]);
+
+  const { costBreakdown, isCalculating } = useCostEstimation(costInputs);
 
   const verticals = [
     { value: 'hr', label: 'Human Resources', icon: <Users className="h-4 w-4" /> },
@@ -68,9 +108,22 @@ const ProjectWizard = () => {
   ];
 
   const llmProviders = [
-    { value: 'llama3', label: 'LLaMA 3 70B (Private)', cost: '$0.0001/1K tokens' },
-    { value: 'gemini', label: 'Gemini 2.5 Pro', cost: '$0.0015/1K tokens' },
-    { value: 'mistral', label: 'Mistral Large', cost: '$0.0008/1K tokens' }
+    { value: 'llama3', label: 'LLaMA 3 70B (Private)', cost: 'GPU hosting required', icon: <Brain className="h-4 w-4" /> },
+    { value: 'gemini', label: 'Gemini 2.5 Pro', cost: '$0.00008/1K tokens', icon: <Zap className="h-4 w-4" /> },
+    { value: 'claude', label: 'Claude Sonnet', cost: '$0.0025/1K tokens', icon: <Brain className="h-4 w-4" /> },
+    { value: 'gpt4', label: 'GPT-4', cost: '$0.00003/1K tokens', icon: <Brain className="h-4 w-4" /> }
+  ];
+
+  const gpuOptions = [
+    { value: 'none', label: 'No GPU (API-only)', cost: '$0/month' },
+    { value: 'a100', label: 'NVIDIA A100', cost: '$1.20/hour' },
+    { value: 'h100', label: 'NVIDIA H100', cost: '$2.50/hour' }
+  ];
+
+  const vectorStoreOptions = [
+    { value: 'chroma', label: 'ChromaDB (Self-hosted)', cost: '$22/month' },
+    { value: 'weaviate', label: 'Weaviate (Managed)', cost: '$50/month' },
+    { value: 'qdrant', label: 'Qdrant (Managed)', cost: '$35/month' }
   ];
 
   const complianceOptions = [
@@ -174,6 +227,27 @@ const ProjectWizard = () => {
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold mb-2">Data Sources</h2>
               <p className="text-muted-foreground">What documents and data will power your AI assistant?</p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label>Estimated Data Volume (GB)</Label>
+                <div className="mt-2">
+                  <Slider
+                    value={[spec.storageGb]}
+                    onValueChange={([value]) => setSpec(prev => ({ ...prev, storageGb: value }))}
+                    max={1000}
+                    min={1}
+                    step={5}
+                    className="mt-2"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                    <span>1 GB</span>
+                    <span>{spec.storageGb} GB</span>
+                    <span>1,000 GB</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <Card>
@@ -350,7 +424,147 @@ const ProjectWizard = () => {
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold mb-2">LLM Selection & Budget</h2>
+              <h2 className="text-2xl font-bold mb-2">Infrastructure & Resources</h2>
+              <p className="text-muted-foreground">Configure GPU and infrastructure resources</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5" />
+                    GPU Configuration
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label>GPU Type</Label>
+                    <Select value={spec.gpuProvider} onValueChange={(value) => setSpec(prev => ({ ...prev, gpuProvider: value }))}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {gpuOptions.map((gpu) => (
+                          <SelectItem key={gpu.value} value={gpu.value}>
+                            <div className="flex justify-between items-center w-full">
+                              <span>{gpu.label}</span>
+                              <span className="text-xs text-muted-foreground ml-2">{gpu.cost}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {spec.gpuProvider !== 'none' && (
+                    <>
+                      <div>
+                        <Label>Number of GPUs: {spec.gpuCount}</Label>
+                        <Slider
+                          value={[spec.gpuCount]}
+                          onValueChange={([value]) => setSpec(prev => ({ ...prev, gpuCount: value }))}
+                          max={8}
+                          min={1}
+                          step={1}
+                          className="mt-2"
+                        />
+                      </div>
+
+                      <div>
+                        <Label>Hours per day: {spec.gpuHoursPerDay}</Label>
+                        <Slider
+                          value={[spec.gpuHoursPerDay]}
+                          onValueChange={([value]) => setSpec(prev => ({ ...prev, gpuHoursPerDay: value }))}
+                          max={24}
+                          min={1}
+                          step={1}
+                          className="mt-2"
+                        />
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Database className="h-5 w-5" />
+                    Vector Database
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Label>Vector Store</Label>
+                  <Select value={spec.vectorStore} onValueChange={(value) => setSpec(prev => ({ ...prev, vectorStore: value }))}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vectorStoreOptions.map((store) => (
+                        <SelectItem key={store.value} value={store.value}>
+                          <div className="flex justify-between items-center w-full">
+                            <span>{store.label}</span>
+                            <span className="text-xs text-muted-foreground ml-2">{store.cost}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Additional Infrastructure</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="supabase-pro"
+                    checked={spec.supabasePlan === 'pro'}
+                    onCheckedChange={(checked) => setSpec(prev => ({ 
+                      ...prev, 
+                      supabasePlan: checked ? 'pro' : 'free' 
+                    }))}
+                  />
+                  <Label htmlFor="supabase-pro">Supabase Pro Plan (+$25/month)</Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="k8s"
+                    checked={spec.useK8s}
+                    onCheckedChange={(checked) => setSpec(prev => ({ 
+                      ...prev, 
+                      useK8s: !!checked 
+                    }))}
+                  />
+                  <Label htmlFor="k8s">Kubernetes Control Plane (+$100/month)</Label>
+                </div>
+
+                <div>
+                  <Label>Workflow Platform</Label>
+                  <Select value={spec.n8nMode} onValueChange={(value: 'self_hosted' | 'cloud_free') => setSpec(prev => ({ ...prev, n8nMode: value }))}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cloud_free">n8n Cloud Free (100 runs/month)</SelectItem>
+                      <SelectItem value="self_hosted">n8n Self-hosted (+$10/month)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case 6:
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold mb-2">LLM Selection & Token Budget</h2>
               <p className="text-muted-foreground">Choose your AI model and set spending limits</p>
             </div>
 
@@ -368,9 +582,12 @@ const ProjectWizard = () => {
                     onClick={() => setSpec(prev => ({ ...prev, llmProvider: provider.value }))}
                   >
                     <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium">{provider.label}</h4>
-                        <p className="text-sm text-muted-foreground">{provider.cost}</p>
+                      <div className="flex items-center gap-3">
+                        {provider.icon}
+                        <div>
+                          <h4 className="font-medium">{provider.label}</h4>
+                          <p className="text-sm text-muted-foreground">{provider.cost}</p>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {provider.value === 'llama3' && <Badge variant="secondary">Private</Badge>}
@@ -384,25 +601,25 @@ const ProjectWizard = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Monthly Budget</CardTitle>
+                <CardTitle>Token Budget</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div>
-                    <Label>Monthly spending limit: ${spec.budget}</Label>
+                    <Label>Monthly token limit: {spec.tokenBudget.toLocaleString()}</Label>
                     <Slider
-                      value={[spec.budget]}
-                      onValueChange={([value]) => setSpec(prev => ({ ...prev, budget: value }))}
-                      max={10000}
-                      min={100}
-                      step={100}
+                      value={[spec.tokenBudget]}
+                      onValueChange={([value]) => setSpec(prev => ({ ...prev, tokenBudget: value }))}
+                      max={1000000}
+                      min={10000}
+                      step={10000}
                       className="mt-2"
                     />
                   </div>
                   <div className="text-sm text-muted-foreground">
                     <p>Estimated usage based on your configuration:</p>
-                    <p>• {spec.expectedUsers} users × {spec.throughput} messages/min ≈ ${Math.round(spec.budget * 0.3)}/month</p>
-                    <p>• 80% buffer for traffic spikes included</p>
+                    <p>• {spec.expectedUsers} users × {spec.throughput} messages/min</p>
+                    <p>• Recommended buffer for traffic spikes included</p>
                   </div>
                 </div>
               </CardContent>
@@ -410,7 +627,7 @@ const ProjectWizard = () => {
           </div>
         );
 
-      case 6:
+      case 7:
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
@@ -418,47 +635,58 @@ const ProjectWizard = () => {
               <p className="text-muted-foreground">Review your configuration and deploy your AI assistant</p>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Project Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Project Name</Label>
-                    <p className="text-sm">{spec.projectName || 'Untitled Project'}</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Project Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">Project Name</Label>
+                      <p className="text-sm">{spec.projectName || 'Untitled Project'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Vertical</Label>
+                      <p className="text-sm">{spec.vertical || 'Not selected'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Expected Users</Label>
+                      <p className="text-sm">{spec.expectedUsers}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">GPU Configuration</Label>
+                      <p className="text-sm">
+                        {spec.gpuProvider === 'none' ? 'No GPU' : 
+                         `${spec.gpuCount}× ${spec.gpuProvider.toUpperCase()} (${spec.gpuHoursPerDay}h/day)`}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Vector Store</Label>
+                      <p className="text-sm capitalize">{spec.vectorStore}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">LLM Provider</Label>
+                      <p className="text-sm">{llmProviders.find(p => p.value === spec.llmProvider)?.label || 'Not selected'}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Storage</Label>
+                      <p className="text-sm">{spec.storageGb} GB</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">Compliance</Label>
+                      <p className="text-sm">{spec.complianceFlags.length > 0 ? spec.complianceFlags.join(', ') : 'None'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium">Vertical</Label>
-                    <p className="text-sm">{spec.vertical || 'Not selected'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Expected Users</Label>
-                    <p className="text-sm">{spec.expectedUsers}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Throughput</Label>
-                    <p className="text-sm">{spec.throughput} msgs/min</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">SLA Target</Label>
-                    <p className="text-sm">{spec.sla}%</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">LLM Provider</Label>
-                    <p className="text-sm">{llmProviders.find(p => p.value === spec.llmProvider)?.label || 'Not selected'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Monthly Budget</Label>
-                    <p className="text-sm">${spec.budget}</p>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Compliance</Label>
-                    <p className="text-sm">{spec.complianceFlags.length > 0 ? spec.complianceFlags.join(', ') : 'None'}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+
+              <CostBreakdown 
+                breakdown={costBreakdown} 
+                isCalculating={isCalculating}
+                showDetails={true}
+              />
+            </div>
 
             <Card className="bg-green-50 border-green-200">
               <CardContent className="p-4">
@@ -483,7 +711,7 @@ const ProjectWizard = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto p-6">
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-3xl font-bold">Create AI Project</h1>
@@ -492,11 +720,26 @@ const ProjectWizard = () => {
         <Progress value={progressPercentage} className="h-2" />
       </div>
 
-      <Card className="min-h-[600px]">
-        <CardContent className="p-8">
-          {renderStep()}
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-3">
+          <Card className="min-h-[600px]">
+            <CardContent className="p-8">
+              {renderStep()}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sticky Cost Sidebar */}
+        <div className="lg:col-span-1">
+          <div className="sticky top-6">
+            <CostBreakdown 
+              breakdown={costBreakdown} 
+              isCalculating={isCalculating}
+              showDetails={currentStep >= 5}
+            />
+          </div>
+        </div>
+      </div>
 
       <div className="flex justify-between mt-6">
         <Button 
