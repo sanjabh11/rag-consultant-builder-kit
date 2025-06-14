@@ -5,10 +5,16 @@ import { useAIProjects } from "@/hooks/useAIProjects";
 import { PlusCircle } from "lucide-react";
 import ProjectCreationWizard from "@/components/ProjectCreationWizard";
 import { useState } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const AIProjects = () => {
-  const { projects, isLoading, error } = useAIProjects();
+  const { data: projects, isLoading, error } = useAIProjects();
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+
+  // When wizard completes, close it. You could add redirect, etc.
+  const handleWizardComplete = () => {
+    setIsWizardOpen(false);
+  };
 
   return (
     <div>
@@ -21,7 +27,7 @@ const AIProjects = () => {
 
       {isLoading && <p>Loading projects...</p>}
       {error && <p className="text-red-500">Error: {error.message}</p>}
-      
+
       {!isLoading && !error && projects && projects.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((project) => (
@@ -45,10 +51,14 @@ const AIProjects = () => {
         </div>
       )}
 
-      <ProjectCreationWizard
-        isOpen={isWizardOpen}
-        onOpenChange={setIsWizardOpen}
-      />
+      <Dialog open={isWizardOpen} onOpenChange={setIsWizardOpen}>
+        <DialogContent className="max-w-5xl w-full p-0">
+          <ProjectCreationWizard
+            onComplete={handleWizardComplete}
+            onCancel={() => setIsWizardOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
