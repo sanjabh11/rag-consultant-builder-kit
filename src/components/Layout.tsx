@@ -31,6 +31,9 @@ const Layout = ({ children }: { children: ReactNode }) => {
                 <Link to="/subscription">
                   <Button variant="ghost">Subscription</Button>
                 </Link>
+                <Link to="/production-status">
+                  <Button variant="ghost">Production Status</Button>
+                </Link>
                 <Button onClick={handleLogout}>Logout</Button>
               </div>
             ) : (

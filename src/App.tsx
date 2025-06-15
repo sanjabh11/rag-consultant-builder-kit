@@ -10,6 +10,7 @@ import WorkflowBuilder from "./components/WorkflowBuilder";
 import LLMConfigPanel from "./components/LLMConfigPanel";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import ProductionStatus from "./pages/ProductionStatus";
 import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
@@ -46,6 +47,7 @@ const AppContent = () => {
         <Route path="/llm-config" element={<Layout><LLMConfigPanel /></Layout>} />
         <Route path="/subscription" element={<Layout><SubscriptionManager /></Layout>} />
         <Route path="/analytics" element={<Layout><AnalyticsDashboard /></Layout>} />
+        <Route path="/production-status" element={<Layout><ProductionStatus /></Layout>} />
         <Route path="/team/:projectId" element={<Layout><TeamCollaboration projectId={""} /></Layout>} />
         <Route path="/team-management/:projectId" element={
           <Layout>

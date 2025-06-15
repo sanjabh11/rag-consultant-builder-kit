@@ -1172,6 +1172,42 @@ export type Database = {
         }
         Relationships: []
       }
+      progress_sessions: {
+        Row: {
+          completed: boolean
+          created_at: string
+          hints_used: number
+          id: string
+          problem_text: string
+          subject: string
+          time_spent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          hints_used?: number
+          id?: string
+          problem_text: string
+          subject: string
+          time_spent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          hints_used?: number
+          id?: string
+          problem_text?: string
+          subject?: string
+          time_spent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       projects: {
         Row: {
           created_at: string
