@@ -25,6 +25,12 @@ const Layout = ({ children }: { children: ReactNode }) => {
                 <Link to="/ai-projects">
                   <Button variant="ghost">My Projects</Button>
                 </Link>
+                <Link to="/analytics">
+                  <Button variant="ghost">Analytics</Button>
+                </Link>
+                <Link to="/subscription">
+                  <Button variant="ghost">Subscription</Button>
+                </Link>
                 <Button onClick={handleLogout}>Logout</Button>
               </div>
             ) : (

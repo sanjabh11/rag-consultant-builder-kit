@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,6 +12,9 @@ import Auth from "./pages/Auth";
 import { AuthProvider } from "./hooks/useAuth";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
+import SubscriptionManager from "./components/SubscriptionManager";
+import AnalyticsDashboard from "./components/AnalyticsDashboard";
+import TeamCollaboration from "./components/TeamCollaboration";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +32,9 @@ const App = () => (
               <Route path="/ai-projects" element={<Layout><AIProjects /></Layout>} />
               <Route path="/workflows" element={<Layout><WorkflowBuilder /></Layout>} />
               <Route path="/llm-config" element={<Layout><LLMConfigPanel /></Layout>} />
+              <Route path="/subscription" element={<Layout><SubscriptionManager /></Layout>} />
+              <Route path="/analytics" element={<Layout><AnalyticsDashboard /></Layout>} />
+              <Route path="/team/:projectId" element={<Layout><TeamCollaboration projectId={""} /></Layout>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
