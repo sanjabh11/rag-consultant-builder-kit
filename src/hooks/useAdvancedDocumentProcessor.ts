@@ -201,17 +201,20 @@ const generateSummary = async (content: string): Promise<string> => {
 const extractKeywords = (text: string): string[] => {
   const commonWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should']);
   
-  return text
+  const words = text
     .toLowerCase()
     .split(/\W+/)
-    .filter(word => word.length > 3 && !commonWords.has(word))
-    .reduce((acc: Record<string, number>, word) => {
-      acc[word] = (acc[word] || 0) + 1;
-      return acc;
-    }, {})
-    |> Object.entries
-    |> (entries => entries.sort(([,a], [,b]) => b - a))
-    |> (sorted => sorted.slice(0, 10).map(([word]) => word));
+    .filter(word => word.length > 3 && !commonWords.has(word));
+    
+  const wordCount: Record<string, number> = {};
+  words.forEach(word => {
+    wordCount[word] = (wordCount[word] || 0) + 1;
+  });
+  
+  return Object.entries(wordCount)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 10)
+    .map(([word]) => word);
 };
 
 const estimatePageCount = (content: string): number => {

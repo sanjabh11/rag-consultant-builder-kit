@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocalDocuments } from "@/hooks/useLocalDocuments";
-import { MessageSquare, Send, FileText } from "lucide-react";
+import { useGemini } from "@/hooks/useGemini";
+import { useAdvancedSearch } from "@/hooks/useAdvancedSearch";
+import { MessageSquare, Send, FileText, Settings } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface LocalRAGChatProps {
@@ -21,20 +24,26 @@ interface ChatMessage {
     fileName: string;
     chunkIndex: number;
     snippet: string;
+    score: number;
   }>;
   timestamp: string;
+  tokensUsed?: number;
 }
 
 const LocalRAGChat: React.FC<LocalRAGChatProps> = ({ projectId }) => {
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const { documents, searchDocuments } = useLocalDocuments(projectId);
+  const [searchAlgorithm, setSearchAlgorithm] = useState<'keyword' | 'semantic' | 'hybrid'>('hybrid');
+  const [showSettings, setShowSettings] = useState(false);
+  
+  const { documents } = useLocalDocuments(projectId);
+  const { generateText, isLoading } = useGemini();
+  const { search, isSearching } = useAdvancedSearch(projectId);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim() || isProcessing) return;
+    if (!query.trim() || isLoading) return;
 
     if (documents.length === 0) {
       toast({
@@ -45,7 +54,6 @@ const LocalRAGChat: React.FC<LocalRAGChatProps> = ({ projectId }) => {
       return;
     }
 
-    setIsProcessing(true);
     const userMessage: ChatMessage = {
       id: `msg_${Date.now()}`,
       type: 'user',
@@ -56,33 +64,68 @@ const LocalRAGChat: React.FC<LocalRAGChatProps> = ({ projectId }) => {
     setMessages(prev => [...prev, userMessage]);
 
     try {
-      // Simple local search through documents
-      const relevantDocs = searchDocuments(query);
-      const sources = relevantDocs.slice(0, 3).map(doc => ({
-        fileName: doc.fileName,
-        chunkIndex: 0,
-        snippet: doc.content.substring(0, 200) + '...'
-      }));
+      // Use advanced search to find relevant content
+      const searchResults = await search(query, {
+        algorithm: searchAlgorithm,
+        threshold: 0.3,
+        maxResults: 5,
+        boostRecent: true
+      });
 
-      // Create a simple response (in production, this would call an LLM)
-      const context = relevantDocs
-        .flatMap(doc => doc.chunks || [])
-        .slice(0, 5)
-        .map(chunk => chunk.text)
+      const context = searchResults
+        .map(result => result.content)
         .join('\n\n');
 
-      const assistantResponse = generateSimpleResponse(query, context);
+      if (!context.trim()) {
+        const fallbackMessage: ChatMessage = {
+          id: `msg_${Date.now() + 1}`,
+          type: 'assistant',
+          content: "I couldn't find relevant information in your documents to answer this question. Please try rephrasing your query or upload more relevant documents.",
+          timestamp: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, fallbackMessage]);
+        setQuery("");
+        return;
+      }
 
-      const assistantMessage: ChatMessage = {
-        id: `msg_${Date.now() + 1}`,
-        type: 'assistant',
-        content: assistantResponse,
-        sources,
-        timestamp: new Date().toISOString()
-      };
+      // Generate AI response using Gemini
+      const prompt = `Based on the following context from documents, answer the user's question accurately and comprehensively:
 
-      setMessages(prev => [...prev, assistantMessage]);
-      setQuery("");
+Context:
+${context}
+
+Question: ${query}
+
+Instructions:
+- Answer based only on the provided context
+- If the context doesn't contain enough information, say so clearly
+- Be specific and cite relevant parts of the context
+- Keep the response helpful and concise`;
+
+      const response = await generateText(prompt, {
+        temperature: 0.3,
+        maxTokens: 1000,
+      });
+
+      if (response) {
+        const sources = searchResults.slice(0, 3).map(result => ({
+          fileName: result.fileName,
+          chunkIndex: 0,
+          snippet: result.content.substring(0, 200) + '...',
+          score: result.score
+        }));
+
+        const assistantMessage: ChatMessage = {
+          id: `msg_${Date.now() + 1}`,
+          type: 'assistant',
+          content: response.text,
+          sources,
+          timestamp: new Date().toISOString(),
+          tokensUsed: response.tokensUsed
+        };
+
+        setMessages(prev => [...prev, assistantMessage]);
+      }
 
     } catch (error) {
       console.error('RAG query error:', error);
@@ -92,29 +135,8 @@ const LocalRAGChat: React.FC<LocalRAGChatProps> = ({ projectId }) => {
         variant: "destructive",
       });
     } finally {
-      setIsProcessing(false);
+      setQuery("");
     }
-  };
-
-  // Simple response generation (placeholder for actual LLM integration)
-  const generateSimpleResponse = (query: string, context: string): string => {
-    if (!context.trim()) {
-      return "I couldn't find relevant information in your documents to answer this question. Please try rephrasing your query or upload more relevant documents.";
-    }
-
-    const words = query.toLowerCase().split(' ');
-    const contextLower = context.toLowerCase();
-    
-    // Simple keyword matching
-    const relevantSentences = context.split('.').filter(sentence => 
-      words.some(word => sentence.toLowerCase().includes(word))
-    ).slice(0, 3);
-
-    if (relevantSentences.length > 0) {
-      return `Based on your documents, here's what I found:\n\n${relevantSentences.join('. ')}.`;
-    }
-
-    return "I found some related content in your documents, but couldn't generate a specific answer. Please try a more specific question.";
   };
 
   return (
@@ -123,12 +145,39 @@ const LocalRAGChat: React.FC<LocalRAGChatProps> = ({ projectId }) => {
         <div className="flex justify-between items-center">
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
-            Local RAG Chat
+            Enhanced RAG Chat
           </CardTitle>
-          <Badge variant="outline">
-            {documents.length} documents
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">
+              {documents.length} documents
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowSettings(!showSettings)}
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
+        
+        {showSettings && (
+          <div className="pt-4 border-t">
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium">Search Algorithm:</label>
+              <Select value={searchAlgorithm} onValueChange={(value: any) => setSearchAlgorithm(value)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="keyword">Keyword</SelectItem>
+                  <SelectItem value="semantic">Semantic</SelectItem>
+                  <SelectItem value="hybrid">Hybrid</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
       </CardHeader>
       
       <CardContent className="flex-1 flex flex-col p-0">
@@ -152,8 +201,11 @@ const LocalRAGChat: React.FC<LocalRAGChatProps> = ({ projectId }) => {
                         : 'bg-gray-100 text-gray-900'
                     }`}>
                       <p className="whitespace-pre-wrap">{message.content}</p>
-                      <div className="text-xs opacity-70 mt-1">
-                        {new Date(message.timestamp).toLocaleTimeString()}
+                      <div className="flex items-center gap-2 text-xs opacity-70 mt-1">
+                        <span>{new Date(message.timestamp).toLocaleTimeString()}</span>
+                        {message.tokensUsed && (
+                          <span>• {message.tokensUsed} tokens</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -164,7 +216,12 @@ const LocalRAGChat: React.FC<LocalRAGChatProps> = ({ projectId }) => {
                       <div className="space-y-1">
                         {message.sources.map((source, index) => (
                           <div key={index} className="text-xs p-2 bg-blue-50 rounded border-l-2 border-blue-200">
-                            <div className="font-medium">{source.fileName}</div>
+                            <div className="flex justify-between items-start mb-1">
+                              <div className="font-medium">{source.fileName}</div>
+                              <Badge variant="outline" className="text-xs">
+                                {Math.round(source.score * 100)}% match
+                              </Badge>
+                            </div>
                             <div className="text-muted-foreground">{source.snippet}</div>
                           </div>
                         ))}
@@ -183,14 +240,14 @@ const LocalRAGChat: React.FC<LocalRAGChatProps> = ({ projectId }) => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Ask a question about your documents..."
-              disabled={isProcessing || documents.length === 0}
+              disabled={isLoading || isSearching || documents.length === 0}
               className="flex-1"
             />
             <Button
               type="submit"
-              disabled={isProcessing || !query.trim() || documents.length === 0}
+              disabled={isLoading || isSearching || !query.trim() || documents.length === 0}
             >
-              {isProcessing ? (
+              {isLoading || isSearching ? (
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
               ) : (
                 <Send className="h-4 w-4" />
