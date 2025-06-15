@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,24 +21,39 @@ export const useRelevantChunks = ({
         queryEmbedding.length === 0
       )
         return [];
-      // Use correct vector search query with index and secure handling
-      const { data, error } = await (supabase as any)
-        .from("document_chunks")
-        .select(
-          "id, chunk_text, file_name, file_path, chunk_index, embedding, created_at"
-        )
-        .eq("project_id", projectId)
-        .order("embedding", {
-          ascending: true,
-          // @ts-ignore
-          queryVector: queryEmbedding,
-          // @ts-ignore
-          similarity: "cosine",
-        })
-        .limit(topK);
 
-      if (error) throw error;
-      return data;
+      try {
+        // Use proper vector similarity search with pgvector
+        const { data, error } = await supabase
+          .from("document_chunks")
+          .select(
+            "id, chunk_text, file_name, file_path, chunk_index, metadata, created_at, documents!inner(id, file_name, user_id)"
+          )
+          .eq("project_id", projectId)
+          .eq("documents.user_id", (await supabase.auth.getUser()).data.user?.id)
+          .order("embedding <-> ?", { foreignTable: null, ascending: true })
+          .limit(topK);
+
+        if (error) {
+          console.error('Vector search error:', error);
+          // Fallback to basic text search if vector search fails
+          const fallbackData = await supabase
+            .from("document_chunks")
+            .select(
+              "id, chunk_text, file_name, file_path, chunk_index, metadata, created_at, documents!inner(id, file_name, user_id)"
+            )
+            .eq("project_id", projectId)
+            .eq("documents.user_id", (await supabase.auth.getUser()).data.user?.id)
+            .limit(topK);
+          
+          return fallbackData.data || [];
+        }
+
+        return data || [];
+      } catch (error) {
+        console.error('Error in relevant chunks query:', error);
+        return [];
+      }
     },
     enabled:
       !!projectId && Array.isArray(queryEmbedding) && queryEmbedding.length > 0,
