@@ -1,7 +1,6 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from './AuthProvider';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Project {
   id: string;
