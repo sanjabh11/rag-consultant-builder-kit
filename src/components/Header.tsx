@@ -1,9 +1,8 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { User, LogOut } from 'lucide-react';
-import { useAuth } from './AuthProvider';
+import { useAuth } from '@/hooks/useAuth';
 import AuthModal from './AuthModal';
 import ProjectSelector from './ProjectSelector';
 
