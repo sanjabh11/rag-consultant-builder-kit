@@ -756,6 +756,153 @@ export type Database = {
           },
         ]
       }
+      job_matches: {
+        Row: {
+          ai_reasoning: string | null
+          created_at: string
+          id: string
+          job_opportunity_id: string
+          job_seeker_id: string
+          match_score: number
+          match_status: string | null
+          matching_skills: string[] | null
+          skill_gaps: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          created_at?: string
+          id?: string
+          job_opportunity_id: string
+          job_seeker_id: string
+          match_score: number
+          match_status?: string | null
+          matching_skills?: string[] | null
+          skill_gaps?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          ai_reasoning?: string | null
+          created_at?: string
+          id?: string
+          job_opportunity_id?: string
+          job_seeker_id?: string
+          match_score?: number
+          match_status?: string | null
+          matching_skills?: string[] | null
+          skill_gaps?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_matches_job_opportunity_id_fkey"
+            columns: ["job_opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "job_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_matches_job_seeker_id_fkey"
+            columns: ["job_seeker_id"]
+            isOneToOne: false
+            referencedRelation: "job_seekers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_opportunities: {
+        Row: {
+          company_name: string | null
+          created_at: string
+          description: string
+          experience_level: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          job_type: string | null
+          location: string | null
+          posted_at: string
+          preferred_skills: string[] | null
+          remote_friendly: boolean | null
+          required_skills: string[] | null
+          salary_range: string | null
+          title: string
+        }
+        Insert: {
+          company_name?: string | null
+          created_at?: string
+          description: string
+          experience_level?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          job_type?: string | null
+          location?: string | null
+          posted_at?: string
+          preferred_skills?: string[] | null
+          remote_friendly?: boolean | null
+          required_skills?: string[] | null
+          salary_range?: string | null
+          title: string
+        }
+        Update: {
+          company_name?: string | null
+          created_at?: string
+          description?: string
+          experience_level?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          job_type?: string | null
+          location?: string | null
+          posted_at?: string
+          preferred_skills?: string[] | null
+          remote_friendly?: boolean | null
+          required_skills?: string[] | null
+          salary_range?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      job_seekers: {
+        Row: {
+          created_at: string
+          current_job_title: string | null
+          desired_roles: string[] | null
+          education_level: string | null
+          experience_years: number | null
+          id: string
+          location: string | null
+          resume_text: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_job_title?: string | null
+          desired_roles?: string[] | null
+          education_level?: string | null
+          experience_years?: number | null
+          id?: string
+          location?: string | null
+          resume_text?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_job_title?: string | null
+          desired_roles?: string[] | null
+          education_level?: string | null
+          experience_years?: number | null
+          id?: string
+          location?: string | null
+          resume_text?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       lesson_modules: {
         Row: {
           content: string | null
@@ -1176,6 +1323,89 @@ export type Database = {
           },
         ]
       }
+      reskilling_paths: {
+        Row: {
+          completion_percentage: number | null
+          created_at: string
+          estimated_duration_weeks: number | null
+          id: string
+          job_seeker_id: string
+          path_status: string | null
+          recommended_courses: Json | null
+          skill_gaps: Json | null
+          target_job_role: string
+          updated_at: string
+        }
+        Insert: {
+          completion_percentage?: number | null
+          created_at?: string
+          estimated_duration_weeks?: number | null
+          id?: string
+          job_seeker_id: string
+          path_status?: string | null
+          recommended_courses?: Json | null
+          skill_gaps?: Json | null
+          target_job_role: string
+          updated_at?: string
+        }
+        Update: {
+          completion_percentage?: number | null
+          created_at?: string
+          estimated_duration_weeks?: number | null
+          id?: string
+          job_seeker_id?: string
+          path_status?: string | null
+          recommended_courses?: Json | null
+          skill_gaps?: Json | null
+          target_job_role?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reskilling_paths_job_seeker_id_fkey"
+            columns: ["job_seeker_id"]
+            isOneToOne: false
+            referencedRelation: "job_seekers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_analyses: {
+        Row: {
+          analysis_data: Json
+          created_at: string
+          id: string
+          notes: string | null
+          occupation_code: string
+          occupation_title: string
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_data: Json
+          created_at?: string
+          id?: string
+          notes?: string | null
+          occupation_code: string
+          occupation_title: string
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_data?: Json
+          created_at?: string
+          id?: string
+          notes?: string | null
+          occupation_code?: string
+          occupation_title?: string
+          tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       scheduled_audits: {
         Row: {
           created_at: string
@@ -1214,6 +1444,71 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      search_history: {
+        Row: {
+          id: string
+          results_count: number | null
+          search_term: string
+          searched_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          results_count?: number | null
+          search_term: string
+          searched_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          results_count?: number | null
+          search_term?: string
+          searched_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      skill_assessments: {
+        Row: {
+          assessment_method: string | null
+          confidence_score: number | null
+          created_at: string
+          id: string
+          identified_skills: Json | null
+          job_seeker_id: string
+          skill_levels: Json | null
+          updated_at: string
+        }
+        Insert: {
+          assessment_method?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          identified_skills?: Json | null
+          job_seeker_id: string
+          skill_levels?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          assessment_method?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          identified_skills?: Json | null
+          job_seeker_id?: string
+          skill_levels?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "skill_assessments_job_seeker_id_fkey"
+            columns: ["job_seeker_id"]
+            isOneToOne: false
+            referencedRelation: "job_seekers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_progress: {
         Row: {
@@ -1354,6 +1649,30 @@ export type Database = {
           selections?: Json
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          created_at: string
+          id: string
+          settings: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          settings?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          settings?: Json
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

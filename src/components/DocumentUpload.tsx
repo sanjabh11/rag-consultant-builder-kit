@@ -3,8 +3,11 @@ import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
-import { Upload, File } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLocalDocuments } from "@/hooks/useLocalDocuments";
+import { useRateLimiting, RATE_LIMITS } from "@/hooks/useRateLimiting";
+import LocalDocumentUpload from "./LocalDocumentUpload";
+import { Upload, Cloud, HardDrive } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface DocumentUploadProps {
@@ -12,104 +15,59 @@ interface DocumentUploadProps {
   onUploadSuccess?: () => void;
 }
 
-const ALLOWED_TYPES = [
-  "application/pdf",
-  "text/plain",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/msword"
-];
-
 const DocumentUpload: React.FC<DocumentUploadProps> = ({
   projectId,
   onUploadSuccess
 }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const [uploading, setUploading] = useState(false);
+  const { checkRateLimit } = useRateLimiting({
+    ...RATE_LIMITS.DOCUMENT_UPLOAD,
+    identifier: `upload_${projectId}`
+  });
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || !projectId) return;
-
-    setUploading(true);
-    try {
-      const file = files[0];
-      if (!ALLOWED_TYPES.includes(file.type)) {
-        toast({
-          title: "Invalid file type",
-          description: "Please upload a PDF, Word or Text file",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      const path = `${projectId}/${Date.now()}-${file.name}`;
-      const { data, error } = await supabase.storage
-        .from("project-docs")
-        .upload(path, file);
-
-      if (error) throw error;
-
-      // Step 2: Get public file URL
-      const fileUrl = supabase.storage.from("project-docs").getPublicUrl(path).data.publicUrl;
-
-      // Step 3: Call edge function to chunk/index
-      const resp = await supabase.functions.invoke("ingest-doc-chunks", {
-        body: {
-          fileUrl,
-          fileName: file.name,
-          projectId,
-        }
-      });
-      if (resp.error) throw new Error(resp.error.message || 'Failed to index document');
-
-      toast({
-        title: "File uploaded",
-        description: `${file.name} uploaded and indexed successfully.`,
-      });
-
-      onUploadSuccess?.();
-    } catch (err: any) {
-      toast({
-        title: "Upload failed",
-        description: err.message || "Could not upload file."
-      });
-    } finally {
-      setUploading(false);
+  const handleUploadWrapper = () => {
+    if (!checkRateLimit()) {
+      return;
     }
+    onUploadSuccess?.();
   };
 
   return (
     <Card className="mb-6">
       <CardHeader>
-        <CardTitle>
-          <Upload className="inline mr-2" />
-          Upload Project Document
+        <CardTitle className="flex items-center gap-2">
+          <Upload className="h-5 w-5" />
+          Document Upload
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Input
-          ref={fileInputRef}
-          type="file"
-          accept={ALLOWED_TYPES.join(",")}
-          onChange={handleFileUpload}
-          disabled={uploading}
-        />
-        <Button
-          onClick={() => fileInputRef.current?.click()}
-          className="mt-2"
-          disabled={uploading}
-        >
-          {uploading ? (
-            <span className="animate-spin mr-2">🔄</span>
-          ) : (
-            <File className="w-4 h-4 mr-1" />
-          )}
-          Upload file
-        </Button>
-        <p className="text-xs text-muted-foreground mt-1">
-          Accepted types: PDF, DOCX, TXT
-        </p>
+        <Tabs defaultValue="local" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="local" className="flex items-center gap-2">
+              <HardDrive className="h-4 w-4" />
+              Local Storage
+            </TabsTrigger>
+            <TabsTrigger value="cloud" disabled className="flex items-center gap-2">
+              <Cloud className="h-4 w-4" />
+              Cloud Storage (Coming Soon)
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="local" className="mt-4">
+            <LocalDocumentUpload 
+              projectId={projectId} 
+              onUploadSuccess={handleUploadWrapper}
+            />
+          </TabsContent>
+          
+          <TabsContent value="cloud" className="mt-4">
+            <div className="text-center py-8 text-muted-foreground">
+              <Cloud className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Cloud storage integration coming soon!</p>
+              <p className="text-sm mt-2">For now, documents are stored locally in your browser.</p>
+            </div>
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

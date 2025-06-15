@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,33 +16,46 @@ import Layout from "./components/Layout";
 import SubscriptionManager from "./components/SubscriptionManager";
 import AnalyticsDashboard from "./components/AnalyticsDashboard";
 import TeamCollaboration from "./components/TeamCollaboration";
+import ErrorBoundary from "./components/ErrorBoundary";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Layout><Index /></Layout>} />
-            <Route path="/auth" element={<Auth />} />
-            <Route element={<ProtectedRoute />}>
-              <Route path="/ai-projects" element={<Layout><AIProjects /></Layout>} />
-              <Route path="/workflows" element={<Layout><WorkflowBuilder /></Layout>} />
-              <Route path="/llm-config" element={<Layout><LLMConfigPanel /></Layout>} />
-              <Route path="/subscription" element={<Layout><SubscriptionManager /></Layout>} />
-              <Route path="/analytics" element={<Layout><AnalyticsDashboard /></Layout>} />
-              <Route path="/team/:projectId" element={<Layout><TeamCollaboration projectId={""} /></Layout>} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/" element={<Layout><Index /></Layout>} />
+              <Route path="/auth" element={<Auth />} />
+              <Route element={<ProtectedRoute />}>
+                <Route path="/ai-projects" element={<Layout><AIProjects /></Layout>} />
+                <Route path="/workflows" element={<Layout><WorkflowBuilder /></Layout>} />
+                <Route path="/llm-config" element={<Layout><LLMConfigPanel /></Layout>} />
+                <Route path="/subscription" element={<Layout><SubscriptionManager /></Layout>} />
+                <Route path="/analytics" element={<Layout><AnalyticsDashboard /></Layout>} />
+                <Route path="/team/:projectId" element={<Layout><TeamCollaboration projectId={""} /></Layout>} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;
