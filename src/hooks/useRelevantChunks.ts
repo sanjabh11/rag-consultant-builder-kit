@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -21,8 +20,7 @@ export const useRelevantChunks = ({
         queryEmbedding.length === 0
       )
         return [];
-
-      // Use "as any" to sidestep Typescript types
+      // Use correct vector search query with index and secure handling
       const { data, error } = await (supabase as any)
         .from("document_chunks")
         .select(

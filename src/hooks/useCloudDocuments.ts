@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,7 +27,6 @@ export const useCloudDocuments = (projectId: string) => {
     if (user && projectId) {
       fetchDocuments();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, projectId]);
 
   const fetchDocuments = async () => {
@@ -45,7 +43,7 @@ export const useCloudDocuments = (projectId: string) => {
       console.error('Error fetching documents:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch documents",
+        description: "Failed to fetch documents. Please check your connection and try again.",
         variant: "destructive",
       });
     } finally {
@@ -55,10 +53,9 @@ export const useCloudDocuments = (projectId: string) => {
 
   const uploadDocument = async (file: File): Promise<string | null> => {
     if (!user || !projectId) return null;
-
     setUploading(true);
     try {
-      // Upload file to Supabase storage
+      // Use a secure folder structure: user.id/projectId/fileName
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${user.id}/${projectId}/${fileName}`;
@@ -70,7 +67,7 @@ export const useCloudDocuments = (projectId: string) => {
 
       if (uploadError) throw uploadError;
 
-      // Create document record
+      // Create document metadata record
       const { data, error } = await supabase
         .from('documents')
         .insert({
@@ -90,14 +87,13 @@ export const useCloudDocuments = (projectId: string) => {
       const newDocument = data as CloudDocument;
       setDocuments(prev => [newDocument, ...prev]);
 
-      // Trigger document processing
+      // Trigger edge function for document processing
       try {
         await supabase.functions.invoke('process-document', {
           body: { documentId: newDocument.id },
         });
       } catch (processError) {
         console.error('Document processing failed:', processError);
-        // Document is uploaded but processing failed
         toast({
           title: "Warning",
           description: "Document uploaded but processing failed. You can retry processing later.",
@@ -113,8 +109,8 @@ export const useCloudDocuments = (projectId: string) => {
     } catch (error) {
       console.error('Error uploading document:', error);
       toast({
-        title: "Error",
-        description: "Failed to upload document",
+        title: "Upload Error",
+        description: "Failed to upload document. Please double-check permissions and try again.",
         variant: "destructive",
       });
       return null;
