@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,27 +18,26 @@ const Dashboard: React.FC = () => {
   const { currentProject } = useProjects();
   const [activeTab, setActiveTab] = useState('cloud');
   const [showProductionCheck, setShowProductionCheck] = useState(false);
-  
-  // Get document stats for onboarding
+
   const { documents } = useCloudDocuments(currentProject?.id || '');
-  const hasCompletedChat = false; // This could be tracked in state/localStorage
+  const hasCompletedChat = false;
 
   if (!currentProject) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="max-w-md mx-auto">
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="max-w-md w-full mx-auto shadow-xl border-0 bg-gradient-to-r from-blue-50 to-sky-100">
           <CardHeader>
-            <CardTitle>Welcome to RAG Chat Platform</CardTitle>
+            <CardTitle className="text-center font-extrabold text-transparent text-2xl bg-gradient-to-tr from-sky-700 to-indigo-500 bg-clip-text">Welcome to RAG Chat Platform</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-gray-600">
+            <p className="text-blue-900/70 text-center">
               Create your first project to get started with document upload and AI-powered chat.
             </p>
-            <div className="text-sm text-muted-foreground">
-              <p>✨ Upload documents (PDF, TXT, DOCX)</p>
-              <p>🤖 Chat with AI about your content</p>
-              <p>📁 Organize with projects</p>
-              <p>☁️ Cloud or local processing</p>
+            <div className="grid grid-cols-2 gap-2 justify-items-center text-xs text-sky-600 font-medium">
+              <span>✨ Upload docs</span>
+              <span>🤖 Chat with AI</span>
+              <span>📁 Organize projects</span>
+              <span>☁️ Cloud/local</span>
             </div>
           </CardContent>
         </Card>
@@ -48,19 +46,20 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="container mx-auto px-2 md:px-4 py-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
         <div>
-          <h2 className="text-3xl font-bold">{currentProject.name}</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-sky-900">{currentProject.name}</h2>
           {currentProject.description && (
-            <p className="text-gray-600 mt-1">{currentProject.description}</p>
+            <p className="text-gray-500 mt-1">{currentProject.description}</p>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="outline">Active Project</Badge>
+          <Badge variant="outline" className="border-indigo-400 text-indigo-700 bg-indigo-50">Active Project</Badge>
           <Button
             variant="outline"
             size="sm"
+            className="bg-white shadow hover:bg-blue-100 transition-all"
             onClick={() => setShowProductionCheck(!showProductionCheck)}
           >
             <BarChart3 className="h-4 w-4 mr-2" />
@@ -70,26 +69,23 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div className="space-y-6">
-        {/* Onboarding Guide */}
         <OnboardingGuide
           projectId={currentProject.id}
           documentCount={documents.length}
           hasCompletedChat={hasCompletedChat}
         />
 
-        {/* Production Readiness Check (conditional) */}
         {showProductionCheck && (
           <ProductionReadinessCheck />
         )}
 
-        {/* Main Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="cloud" className="flex items-center gap-2">
+          <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-indigo-100 to-blue-100 shadow rounded-lg overflow-hidden">
+            <TabsTrigger value="cloud" className="flex items-center gap-2 text-sky-800 font-semibold">
               <Cloud className="h-4 w-4" />
               Cloud RAG
             </TabsTrigger>
-            <TabsTrigger value="local" className="flex items-center gap-2">
+            <TabsTrigger value="local" className="flex items-center gap-2 text-indigo-700 font-semibold">
               <HardDrive className="h-4 w-4" />
               Local RAG
             </TabsTrigger>
@@ -97,11 +93,10 @@ const Dashboard: React.FC = () => {
 
           <TabsContent value="cloud" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Document Upload */}
               <div className="space-y-4">
-                <Card>
+                <Card className="shadow-sm border-sky-200">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-sky-700">
                       <FileText className="h-5 w-5" />
                       Upload Documents
                     </CardTitle>
@@ -111,17 +106,13 @@ const Dashboard: React.FC = () => {
                   </CardContent>
                 </Card>
               </div>
-              
-              {/* Document Library */}
               <div className="space-y-4">
                 <DocumentManager projectId={currentProject.id} />
               </div>
-              
-              {/* RAG Chat */}
               <div className="space-y-4">
-                <Card>
+                <Card className="shadow-sm border-sky-200">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-sky-700">
                       <MessageSquare className="h-5 w-5" />
                       AI Chat
                     </CardTitle>
@@ -137,9 +128,9 @@ const Dashboard: React.FC = () => {
           <TabsContent value="local" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <Card>
+                <Card className="shadow-sm border-indigo-200">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-indigo-700">
                       <FileText className="h-5 w-5" />
                       Local Document Management
                     </CardTitle>
@@ -149,11 +140,10 @@ const Dashboard: React.FC = () => {
                   </CardContent>
                 </Card>
               </div>
-              
               <div className="space-y-4">
-                <Card>
+                <Card className="shadow-sm border-indigo-200">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-indigo-700">
                       <MessageSquare className="h-5 w-5" />
                       Local RAG Chat
                     </CardTitle>
