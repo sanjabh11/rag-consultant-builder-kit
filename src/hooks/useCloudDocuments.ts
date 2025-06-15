@@ -87,12 +87,29 @@ export const useCloudDocuments = (projectId: string) => {
 
       if (error) throw error;
 
-      setDocuments(prev => [data as CloudDocument, ...prev]);
+      const newDocument = data as CloudDocument;
+      setDocuments(prev => [newDocument, ...prev]);
+
+      // Trigger document processing
+      try {
+        await supabase.functions.invoke('process-document', {
+          body: { documentId: newDocument.id },
+        });
+      } catch (processError) {
+        console.error('Document processing failed:', processError);
+        // Document is uploaded but processing failed
+        toast({
+          title: "Warning",
+          description: "Document uploaded but processing failed. You can retry processing later.",
+          variant: "destructive",
+        });
+      }
+
       toast({
         title: "Success",
         description: "Document uploaded and processing started",
       });
-      return (data as CloudDocument).id;
+      return newDocument.id;
     } catch (error) {
       console.error('Error uploading document:', error);
       toast({
@@ -122,7 +139,7 @@ export const useCloudDocuments = (projectId: string) => {
           .remove([(doc as CloudDocument).storage_path]);
       }
 
-      // Delete document record
+      // Delete document record (this will cascade to chunks)
       const { error } = await supabase
         .from('documents')
         .delete()
