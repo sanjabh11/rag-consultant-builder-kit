@@ -390,6 +390,30 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          created_at: string | null
+          event_details: Json | null
+          event_type: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_details?: Json | null
+          event_type?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_details?: Json | null
+          event_type?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       audit_reports: {
         Row: {
           audit_id: string
@@ -1834,6 +1858,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_selections: {
         Row: {
           created_at: string
@@ -2194,6 +2239,7 @@ export type Database = {
         | "new_issue"
         | "resolved_issue"
         | "scheduled_audit"
+      app_role: "admin" | "moderator" | "user"
       audit_frequency: "daily" | "weekly" | "monthly"
       audit_status: "pending" | "scanning" | "completed" | "failed"
       industry_vertical: "legal" | "healthcare" | "saas" | "other"
@@ -2343,6 +2389,7 @@ export const Constants = {
         "resolved_issue",
         "scheduled_audit",
       ],
+      app_role: ["admin", "moderator", "user"],
       audit_frequency: ["daily", "weekly", "monthly"],
       audit_status: ["pending", "scanning", "completed", "failed"],
       industry_vertical: ["legal", "healthcare", "saas", "other"],

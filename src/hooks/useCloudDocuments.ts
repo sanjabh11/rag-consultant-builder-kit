@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -15,6 +16,14 @@ interface CloudDocument {
   uploaded_at: string;
   user_id: string;
 }
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const ALLOWED_TYPES = [
+  'application/pdf',
+  'text/plain',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+];
 
 export const useCloudDocuments = (projectId: string) => {
   const [documents, setDocuments] = useState<CloudDocument[]>([]);
@@ -51,8 +60,32 @@ export const useCloudDocuments = (projectId: string) => {
     }
   };
 
+  const validateFile = (file: File): string | null => {
+    if (file.size > MAX_FILE_SIZE) {
+      return `File size must be less than ${MAX_FILE_SIZE / (1024 * 1024)}MB`;
+    }
+    
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return 'File type not supported. Please upload PDF, TXT, or DOCX files.';
+    }
+    
+    return null;
+  };
+
   const uploadDocument = async (file: File): Promise<string | null> => {
     if (!user || !projectId) return null;
+    
+    // Validate file
+    const validationError = validateFile(file);
+    if (validationError) {
+      toast({
+        title: "Upload Error",
+        description: validationError,
+        variant: "destructive",
+      });
+      return null;
+    }
+    
     setUploading(true);
     try {
       // Use a secure folder structure: user.id/projectId/fileName
@@ -110,7 +143,7 @@ export const useCloudDocuments = (projectId: string) => {
       console.error('Error uploading document:', error);
       toast({
         title: "Upload Error",
-        description: "Failed to upload document. Please double-check permissions and try again.",
+        description: "Failed to upload document. Please check permissions and try again.",
         variant: "destructive",
       });
       return null;

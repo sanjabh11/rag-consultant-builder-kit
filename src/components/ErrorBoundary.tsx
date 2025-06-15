@@ -11,7 +11,6 @@ interface Props {
 interface State {
   hasError: boolean;
   error?: Error;
-  errorInfo?: ErrorInfo;
 }
 
 class ErrorBoundary extends Component<Props, State> {
@@ -25,22 +24,18 @@ class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
-    this.setState({ error, errorInfo });
   }
 
   private handleReset = () => {
-    this.setState({ hasError: false, error: undefined, errorInfo: undefined });
-  };
-
-  private handleReload = () => {
+    this.setState({ hasError: false, error: undefined });
     window.location.reload();
   };
 
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <Card className="max-w-md w-full">
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <Card className="max-w-md mx-auto">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-red-600">
                 <AlertTriangle className="h-5 w-5" />
@@ -48,29 +43,21 @@ class ErrorBoundary extends Component<Props, State> {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                An unexpected error occurred. This has been logged and will be investigated.
+              <p className="text-gray-600">
+                We're sorry, but something unexpected happened. Please try refreshing the page.
               </p>
-              
-              {process.env.NODE_ENV === 'development' && this.state.error && (
-                <details className="text-xs">
-                  <summary className="cursor-pointer font-medium">Error Details</summary>
-                  <pre className="mt-2 p-2 bg-gray-100 rounded overflow-auto">
-                    {this.state.error.toString()}
-                    {this.state.errorInfo && this.state.errorInfo.componentStack}
+              {this.state.error && (
+                <details className="text-sm bg-gray-100 p-2 rounded">
+                  <summary className="cursor-pointer">Error details</summary>
+                  <pre className="mt-2 text-xs overflow-auto">
+                    {this.state.error.message}
                   </pre>
                 </details>
               )}
-              
-              <div className="flex gap-2">
-                <Button onClick={this.handleReset} variant="outline" className="flex-1">
-                  Try Again
-                </Button>
-                <Button onClick={this.handleReload} className="flex-1">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Reload Page
-                </Button>
-              </div>
+              <Button onClick={this.handleReset} className="w-full">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh Page
+              </Button>
             </CardContent>
           </Card>
         </div>

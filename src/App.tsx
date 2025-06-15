@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/components/AuthProvider';
 import { ProjectProvider } from '@/components/ProjectProvider';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import Header from '@/components/Header';
 import Dashboard from '@/components/Dashboard';
 import './App.css';
@@ -20,21 +21,23 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router>
-        <AuthProvider>
-          <ProjectProvider>
-            <div className="min-h-screen bg-gray-50">
-              <Header />
-              <main>
-                <Dashboard />
-              </main>
-              <Toaster />
-            </div>
-          </ProjectProvider>
-        </AuthProvider>
-      </Router>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <Router>
+          <AuthProvider>
+            <ProjectProvider>
+              <div className="min-h-screen bg-gray-50">
+                <Header />
+                <main>
+                  <Dashboard />
+                </main>
+                <Toaster />
+              </div>
+            </ProjectProvider>
+          </AuthProvider>
+        </Router>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
