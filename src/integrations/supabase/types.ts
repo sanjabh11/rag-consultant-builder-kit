@@ -2072,6 +2072,24 @@ export type Database = {
         }
         Returns: string
       }
+      cleanup_old_cache_entries: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      create_notification: {
+        Args: {
+          p_user_id: string
+          p_title: string
+          p_message: string
+          p_type?: string
+          p_metadata?: Json
+        }
+        Returns: string
+      }
+      deduct_api_credits: {
+        Args: { p_user_id: string; p_credits_to_deduct?: number }
+        Returns: boolean
+      }
       generate_share_token: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -2091,6 +2109,10 @@ export type Database = {
       halfvec_typmod_in: {
         Args: { "": unknown[] }
         Returns: number
+      }
+      health_check: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       hnsw_bit_support: {
         Args: { "": unknown }
