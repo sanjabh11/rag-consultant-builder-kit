@@ -16,7 +16,10 @@ import Layout from "./components/Layout";
 import SubscriptionManager from "./components/SubscriptionManager";
 import AnalyticsDashboard from "./components/AnalyticsDashboard";
 import TeamCollaboration from "./components/TeamCollaboration";
+import TeamManagement from "./components/TeamManagement";
 import ErrorBoundary from "./components/ErrorBoundary";
+import MobileOptimizedLayout from "./components/MobileOptimizedLayout";
+import { useMobileOptimization } from "./hooks/useMobileOptimization";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,6 +33,31 @@ const queryClient = new QueryClient({
   },
 });
 
+const AppContent = () => {
+  const { isMobile } = useMobileOptimization();
+
+  return (
+    <Routes>
+      <Route path="/" element={<Layout><Index /></Layout>} />
+      <Route path="/auth" element={<Auth />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/ai-projects" element={<Layout><AIProjects /></Layout>} />
+        <Route path="/workflows" element={<Layout><WorkflowBuilder /></Layout>} />
+        <Route path="/llm-config" element={<Layout><LLMConfigPanel /></Layout>} />
+        <Route path="/subscription" element={<Layout><SubscriptionManager /></Layout>} />
+        <Route path="/analytics" element={<Layout><AnalyticsDashboard /></Layout>} />
+        <Route path="/team/:projectId" element={<Layout><TeamCollaboration projectId={""} /></Layout>} />
+        <Route path="/team-management/:projectId" element={
+          <Layout>
+            <TeamManagement projectId={window.location.pathname.split('/').pop() || ''} />
+          </Layout>
+        } />
+      </Route>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -38,19 +66,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <Routes>
-              <Route path="/" element={<Layout><Index /></Layout>} />
-              <Route path="/auth" element={<Auth />} />
-              <Route element={<ProtectedRoute />}>
-                <Route path="/ai-projects" element={<Layout><AIProjects /></Layout>} />
-                <Route path="/workflows" element={<Layout><WorkflowBuilder /></Layout>} />
-                <Route path="/llm-config" element={<Layout><LLMConfigPanel /></Layout>} />
-                <Route path="/subscription" element={<Layout><SubscriptionManager /></Layout>} />
-                <Route path="/analytics" element={<Layout><AnalyticsDashboard /></Layout>} />
-                <Route path="/team/:projectId" element={<Layout><TeamCollaboration projectId={""} /></Layout>} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AppContent />
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
