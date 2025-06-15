@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { useToast } from '@/hooks/use-toast';
@@ -53,17 +52,19 @@ export const usePDFProcessor = () => {
         fullText += `\n\n--- Page ${pageNum} ---\n${pageText}`;
       }
 
+      const info = metadata.info as Record<string, any> | undefined;
+
       const result: PDFProcessingResult = {
         text: fullText.trim(),
         pageCount,
         metadata: {
-          title: metadata.info.Title,
-          author: metadata.info.Author,
-          subject: metadata.info.Subject,
-          creator: metadata.info.Creator,
-          producer: metadata.info.Producer,
-          creationDate: metadata.info.CreationDate,
-          modificationDate: metadata.info.ModDate,
+          title: info?.Title,
+          author: info?.Author,
+          subject: info?.Subject,
+          creator: info?.Creator,
+          producer: info?.Producer,
+          creationDate: info?.CreationDate,
+          modificationDate: info?.ModDate,
         }
       };
 

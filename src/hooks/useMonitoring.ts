@@ -137,9 +137,12 @@ export const useMonitoring = () => {
     // Calculate uptime
     const uptime = now - startTime;
     
-    // Estimate memory usage (rough approximation)
-    const memoryUsage = performance.memory ? 
-      (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit) * 100 : 0;
+    // Estimate memory usage (rough approximation, Chrome only)
+    let memoryUsage = 0;
+    const perf = window.performance as Performance & { memory?: { usedJSHeapSize: number, jsHeapSizeLimit: number } };
+    if (perf && perf.memory && typeof perf.memory.usedJSHeapSize === 'number' && typeof perf.memory.jsHeapSizeLimit === 'number') {
+      memoryUsage = (perf.memory.usedJSHeapSize / perf.memory.jsHeapSizeLimit) * 100;
+    }
     
     // Calculate error rate from recent metrics
     const recentErrors = metrics['errors.count']?.slice(-10) || [];

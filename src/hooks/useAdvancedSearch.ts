@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useLocalDocuments } from '@/hooks/useLocalDocuments';
 
@@ -38,11 +37,17 @@ export const useAdvancedSearch = (projectId: string) => {
       const results: SearchResult[] = [];
 
       for (const doc of documents) {
-        for (const chunk of doc.chunks || []) {
+        for (const chunkRaw of doc.chunks || []) {
+          // Add fallback for keywords
+          const chunk = {
+            ...chunkRaw,
+            keywords: (chunkRaw as any).keywords || [],
+          };
+
           const score = calculateSimilarityScore(
             chunk.text,
             queryTerms,
-            chunk.keywords || [],
+            chunk.keywords,
             options
           );
 
@@ -53,7 +58,7 @@ export const useAdvancedSearch = (projectId: string) => {
               chunkId: chunk.id,
               content: chunk.text,
               score,
-              keywords: chunk.keywords || []
+              keywords: chunk.keywords
             });
           }
         }
