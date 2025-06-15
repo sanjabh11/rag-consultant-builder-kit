@@ -24,6 +24,7 @@ export const useProjects = () => {
     if (user) {
       fetchProjects();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchProjects = async () => {
@@ -34,7 +35,7 @@ export const useProjects = () => {
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      setProjects(data || []);
+      setProjects((data as Project[]) || []);
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast({
@@ -64,7 +65,7 @@ export const useProjects = () => {
 
       if (error) throw error;
 
-      setProjects(prev => [data, ...prev]);
+      setProjects(prev => [data as Project, ...prev]);
       toast({
         title: "Success",
         description: "Project created successfully",
@@ -92,7 +93,7 @@ export const useProjects = () => {
 
       if (error) throw error;
 
-      setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } : p));
+      setProjects(prev => prev.map(p => p.id === id ? { ...p, ...data } as Project : p));
       toast({
         title: "Success",
         description: "Project updated successfully",

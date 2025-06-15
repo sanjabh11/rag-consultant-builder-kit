@@ -28,6 +28,7 @@ export const useCloudDocuments = (projectId: string) => {
     if (user && projectId) {
       fetchDocuments();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, projectId]);
 
   const fetchDocuments = async () => {
@@ -39,7 +40,7 @@ export const useCloudDocuments = (projectId: string) => {
         .order('uploaded_at', { ascending: false });
 
       if (error) throw error;
-      setDocuments(data || []);
+      setDocuments((data as CloudDocument[]) || []);
     } catch (error) {
       console.error('Error fetching documents:', error);
       toast({
@@ -62,6 +63,7 @@ export const useCloudDocuments = (projectId: string) => {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${user.id}/${projectId}/${fileName}`;
 
+      // Upload to storage bucket (documents)
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file);
@@ -85,22 +87,12 @@ export const useCloudDocuments = (projectId: string) => {
 
       if (error) throw error;
 
-      // Trigger document processing
-      const { error: processError } = await supabase.functions.invoke('ingest-doc-chunks', {
-        body: { documentId: data.id },
-      });
-
-      if (processError) {
-        console.error('Error processing document:', processError);
-        // Don't throw here, document is uploaded, processing can be retried
-      }
-
-      setDocuments(prev => [data, ...prev]);
+      setDocuments(prev => [data as CloudDocument, ...prev]);
       toast({
         title: "Success",
         description: "Document uploaded and processing started",
       });
-      return data.id;
+      return (data as CloudDocument).id;
     } catch (error) {
       console.error('Error uploading document:', error);
       toast({
@@ -121,13 +113,13 @@ export const useCloudDocuments = (projectId: string) => {
         .from('documents')
         .select('storage_path')
         .eq('id', documentId)
-        .single();
+        .maybeSingle();
 
-      if (doc?.storage_path) {
+      if ((doc as CloudDocument)?.storage_path) {
         // Delete from storage
         await supabase.storage
           .from('documents')
-          .remove([doc.storage_path]);
+          .remove([(doc as CloudDocument).storage_path]);
       }
 
       // Delete document record

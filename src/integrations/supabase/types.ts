@@ -703,6 +703,53 @@ export type Database = {
           },
         ]
       }
+      documents: {
+        Row: {
+          chunk_count: number
+          file_name: string
+          file_size: number
+          file_type: string
+          id: string
+          processing_status: string
+          project_id: string
+          storage_path: string
+          uploaded_at: string
+          user_id: string
+        }
+        Insert: {
+          chunk_count?: number
+          file_name: string
+          file_size: number
+          file_type: string
+          id?: string
+          processing_status?: string
+          project_id: string
+          storage_path: string
+          uploaded_at?: string
+          user_id: string
+        }
+        Update: {
+          chunk_count?: number
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          processing_status?: string
+          project_id?: string
+          storage_path?: string
+          uploaded_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generated_websites: {
         Row: {
           about_section: Json
@@ -1122,6 +1169,36 @@ export type Database = {
           id?: string
           subscription_tier?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean
+          name?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
