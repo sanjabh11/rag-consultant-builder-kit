@@ -1145,42 +1145,694 @@ elif st.session_state.step == 5:
 
 ---
 
-## 11. Appendix: Useful URLs & Resources
+ * Deployment and integration of LLaMA 3 70B on CoreWeave with GPU management
+* RAG pipeline using LlamaIndex or alternatives like Weaviate, Qdrant, LangChain—generalized for HR, Finance, Legal, Manufacturing, etc.
+* Expanded n8n automation workflows for end-to-end AI deployment
+* Simplified, reusable UI framework (React or Streamlit) designed for non-technical and senior management audiences
+* Design strategies to support multiple foundation models (Gemini, Claude, Mistral, etc.) and verticals
 
-* **CoreWeave GPU Cloud**: [https://www.coreweave.com/](https://www.coreweave.com/)
-* **vLLM Documentation**: [https://vllm.ai/](https://vllm.ai/)
-* **ChromaDB**: [https://www.chromadb.com/](https://www.chromadb.com/)
-* **LlamaIndex (GPT Index)**: [https://gpt-index.readthedocs.io/](https://gpt-index.readthedocs.io/)
-* **Weaviate**: [https://weaviate.io/](https://weaviate.io/)
-* **Qdrant**: [https://qdrant.tech/](https://qdrant.tech/)
-* **n8n**: [https://n8n.io/](https://n8n.io/)
-* **FastAPI**: [https://fastapi.tiangolo.com/](https://fastapi.tiangolo.com/)
-* **Supabase**: [https://supabase.com/](https://supabase.com/)
-* **Streamlit**: [https://streamlit.io/](https://streamlit.io/)
-* **React Flow**: [https://reactflow.dev/](https://reactflow.dev/)
-* **Grafana**: [https://grafana.com/](https://grafana.com/)
-* **Terraform**: [https://www.terraform.io/](https://www.terraform.io/)
-* **Helm Charts**: [https://helm.sh/](https://helm.sh/)
-* **OpenAPI Generator**: [https://openapi-generator.tech/](https://openapi-generator.tech/)
-* **k6 Load Testing**: [https://k6.io/](https://k6.io/)
-* **Playwright**: [https://playwright.dev/](https://playwright.dev/)
-* **Checkov (Terraform security)**: [https://www.checkov.io/](https://www.checkov.io/)
+ 
 
----
 
-## 12. Next Steps & Timeline
+# Implementation Plan for AI Consultant Platform
 
-Here’s a **recommended 8‐week rollout** (assuming small agile sprints) to align the platform fully with your white-labeled, no-code AI consultant vision:
+This plan details each step to build a turnkey, no-code AI consultant web app for enterprise automation, using private LLMs and RAG. It is intended for engineers, product managers, and executives. Citations support key choices and best practices
 
-| Week | Milestone                                                                                                      |
-| ---- | -------------------------------------------------------------------------------------------------------------- |
-| 1    | **Phase 1 Completion:** LLaMA 3 Docker + K8s deployment; expose `/generate` endpoint; validate latency.        |
-| 2    | **Phase 2 Start:** Build RAG microservice (ChromaDB + LlamaIndex); expose `/api/rag/ingest` & `/retrieve`.     |
-| 3    | **RAG Testing:** Ingest sample docs for HR, Finance, Legal; validate retrieval quality.                        |
-| 4    | **Phase 3 n8n Workflows:** Create 3 domain templates (HR, Legal, Finance); embed n8n editor in React.          |
-| 5    | **Phase 4 UI Updates:** Simplify React Wizard; add branding support; build Streamlit alternate UI.             |
-| 6    | **Phase 5 Dashboard:** Build executive KPI cards (RAG hit rates, cost); implement architecture diagram export. |
-| 7    | **Phase 6 LLM Pluggability:** Abstract LLM clients; configure Supabase for multiple providers; test.           |
-| 8    | **Phase 7 Security/Monitoring & Phase 8 Release:** Add RBAC, tfsec scans, Grafana dashboards, finalize docs.   |
+## 1. Deploy LLaMA 3 70B via vLLM on CoreWeave
 
-By following this plan, you’ll deliver a **production-ready, multi-vertical, no-code AI consultant platform** that non-technical executives and developers alike can use—and that can be white-labeled for any enterprise.
+1. **Obtain the model:** Acquire the LLaMA 3 70B model weights (instruct variant) from Meta’s release (e.g. via Hugging Face). Ensure compliance with Meta’s licensing.
+2. **Set up GPUs:** Use a high-performance GPU cloud (e.g. [CoreWeave](https://www.coreweave.com/)) to host the model. CoreWeave provides Kubernetes-native GPU instances (NVIDIA A100/H100, etc.), which can spin up bare-metal resources in \~5 seconds. This rapid provisioning and support for the latest GPUs makes it well-suited for LLM inference.
+3. **Install vLLM:** On the GPU servers, install [vLLM](https://docs.vllm.ai) (v0.6.5 or later). vLLM is an open-source inference engine optimized for large models. It natively supports LLaMA-family models (including LLaMA 3 70B) for text generation tasks. For example, vLLM’s “Supported Models” list includes `meta-llama/Meta-Llama-3-70B-Instruct` under its LLaMA architecture.
+4. **Optimize loading:** Use CoreWeave’s [Tensorizer](https://docs.coreweave.com) integration to serialize the model to disk. vLLM can load tensorized models directly onto the GPU, significantly reducing startup time and CPU memory usage. This also supports GPU-side encryption of model weights. (Note: install `vllm[tensorizer]` to enable this feature.)
+5. **Configure inference:** Configure vLLM for efficient inference. Enable model quantization (e.g. FP16 or 8-bit) to fit the 70B model on available GPUs, testing for stability. vLLM supports batching and streaming; tune `max_batch_size` and `max_tokens` for performance. If needed, use a multi-GPU setup (CoreWeave’s Kubernetes can orchestrate multi-node inference clusters).
+6. **API endpoint:** Wrap vLLM in an HTTP service (it provides an OpenAI-compatible API). For example, use `vllm --engine_port 8000` to expose a completions endpoint. Ensure JWT authentication at this API layer to protect access.
+7. **Monitoring:** Set up GPU monitoring (CoreWeave metrics, logs) to ensure the inference service is healthy and scalable.
+
+**Tools:** Use NVIDIA A100/H100 GPUs (CoreWeave provides these), Python/vLLM (vLLM docs), and CoreWeave’s Kubernetes cloud (coreweave.com).
+
+## 2. Build a RAG Pipeline for Documents
+
+&#x20;*Figure: Typical Retrieval-Augmented Generation (RAG) workflow – user query → embedding & search in vector store → retrieve documents → LLM answers with context. (Adapted from NVIDIA’s RAG overview.)*
+
+Implement a document-based Retrieval-Augmented Generation (RAG) pipeline so users can query corporate data. Key steps:
+
+* **Choose a vector DB:** Select a vector database to store embeddings. Options include **ChromaDB** (current setup), [Weaviate](https://weaviate.io), or [Qdrant](https://qdrant.tech). All are open-source and support enterprise use. For example, Chroma is Apache-2.0 licensed, in-memory or Docker-based, and fully-featured. Weaviate is cloud-native and supports LlamaIndex directly. Qdrant also integrates with LlamaIndex and offers GPU-accelerated search.
+* **Data ingestion:** Use LlamaIndex (a Python framework) to ingest documents. Its `SimpleDirectoryReader` can load PDFs, Word docs, PowerPoints, Markdown, etc. automatically. In an n8n workflow, for example, when a new PDF is detected, pass its text to LlamaIndex. It will split long documents into smaller “nodes” (e.g. 1–2K token chunks) and attach metadata.
+* **Compute embeddings:** For each chunk, generate embeddings using a pre-trained model (e.g. an open-source text-embedding model or a service like OpenAI’s embeddings). Store the embeddings along with document IDs in the chosen vector store. (LlamaIndex supports Chroma, Weaviate, Qdrant, etc. out-of-the-box.) For instance, with Qdrant you can use `QdrantVectorStore` in LlamaIndex and call `VectorStoreIndex.from_vector_store(...)` after uploading embeddings.
+* **Query-time retrieval:** At runtime, when a user poses a query, convert the query into an embedding and perform a similarity search against the vector DB to retrieve the top-K relevant chunks. LlamaIndex automates this retrieval step. The retrieved text passages serve as contextual “knowledge” for the LLM.
+* **LLM response generation:** Append the retrieved chunks (or summaries of them) to the user’s query as context in the prompt. Then send this augmented prompt to the LLM (e.g. vLLM with LLaMA 3). The LLM will generate answers grounded in the company documents. This RAG approach ensures answers reflect up-to-date internal data.
+* **Example & Benefits:** As AWS explains, RAG “introduces an information retrieval component that…pull\[s] information from a new data source” so the LLM sees both the query and relevant data. NVIDIA notes RAG “empowers LLMs with real-time data access,” preserves data privacy, and “mitigates hallucinations” by grounding answers. By integrating RAG, our chatbot can cite company policies or past cases to increase accuracy.
+
+**Tools:** [LlamaIndex](https://llamaindex.ai) (Python library for RAG), the Chroma DB engine or alternatives (Weaviate, Qdrant). See LlamaIndex docs for Weaviate/Qdrant integration. The NVIDIA and AWS references above provide guidance on RAG design.
+
+## 3. Extend n8n Workflows for Document Ingestion & Notifications
+
+Use n8n (open-source workflow automation) to orchestrate data ingestion and alerts:
+
+* **Google Drive monitoring:** Add an **n8n Google Drive Trigger** node to watch shared folders. Configure it (with OAuth credentials) to fire whenever a new or updated document appears. This automates ingestion without manual uploads.
+* **File processing:** In the workflow, use a **Function** or **HTTP Request** node to retrieve the file content. For PDFs, run a PDF parser (e.g. [PyMuPDF](https://pymupdf.readthedocs.io/) or a cloud OCR) to extract text. Then chunk the text (e.g. by paragraphs or fixed token size) and send those chunks to the RAG ingestion routine above (embedding and storage).
+* **Summarization (optional):** After ingesting, optionally call the LLM to generate a summary of the document. For example, invoke the vLLM endpoint with a “Summarize this document:” prompt plus extracted text. Store the summary in the database or send it to staff.
+* **Notifications:** Use **Slack** and **Email** nodes in n8n to notify relevant teams. For instance, when a doc is processed or a summary is ready, n8n can post a message to a Slack channel or send an email with the key points. The Slack node can use webhooks or a Slack Bot token to post messages. The n8n Slack Trigger/Node supports reacting to events and posting content to channels. Similarly, use the n8n Email node (SMTP) for notifications.
+* **Q\&A routing:** Create a webhook or UI form node for employee queries. When a question is submitted (via chat UI), n8n calls the RAG/LLM service to get an answer and returns it. All queries and answers are logged.
+* **Logging:** Maintain audit logs (n8n execution logs plus your own DB entries) for compliance. Ensure every step (file ingested, LLM call, notification sent) is recorded with timestamps and user IDs. n8n’s built-in execution logs and our JWT auth logs can feed into a centralized log store (Elastic/Graylog, etc.).
+
+**Tools & References:** n8n’s built-in [Google Drive Trigger](https://docs.n8n.io/integrations/builtin/trigger-nodes/n8n-nodes-base.googledrivetrigger/) node handles file events. Use Slack’s API or n8n’s Slack node (see n8n docs) for chat alerts. For PDF text extraction, common libraries (PyMuPDF, PDFMiner) suffice. ChromaDB can be updated via Python or HTTP (it supports REST APIs).
+
+## 4. Simplify the User Interface (React or Streamlit)
+
+Ensure the UI is extremely user-friendly for non-technical staff:
+
+* **Clean React UI:** Simplify the existing React app to a minimal set of actions. Provide a landing page with clear instructions (e.g. “Ask a question about HR policy”). Use simple input forms or chat windows. Employ large fonts, tooltips, and example questions. Hide any technical jargon. Use form controls (dropdowns, toggles) for any advanced options (e.g. selecting a vertical or workflow template).
+* **Streamlit alternative:** As a rapid prototype or alternate interface, consider a [Streamlit](https://streamlit.io) app. Streamlit lets data teams build interactive ML apps in Python with very little code. A Streamlit front-end could provide an even simpler single-page UI: input box, a “Submit” button, and text output. It automatically handles layout, so developers can focus on prompts and results. This can be offered as a low-effort demo or even a staff-facing tool if IT prefers Python.
+* **Interactive workflows:** In either UI, guide users step-by-step. For example, present one question at a time, show the generated answer, then offer a “Next question” button. Provide “Help” or example use-cases (e.g. “Try asking: ‘What is our leave policy?’”). The goal is that any employee or manager can use it without training.
+* **Accessibility & branding:** Apply enterprise UI frameworks (e.g. Material UI or Atlassian’s Atlaskit) so the tool matches corporate style. Ensure mobile responsiveness if needed.
+
+**Tools:** Use standard web frameworks: [React](https://reactjs.org) for a production UI, or [Streamlit](https://streamlit.io) for quick Python-based dashboards. Both can call your backend APIs. No citations needed beyond Streamlit’s official description of being fast for data apps.
+
+## 5. Executive Dashboards and Reporting
+
+Provide summarized visual dashboards for senior leadership:
+
+* **Key metrics:** Determine KPIs that executives care about (e.g. number of workflows automated, average response time, documents ingested, cost/time savings). Show these in a dashboard. For example, charts or counters for “New HR FAQs answered this month,” “Average turnaround time for summaries,” etc.
+* **Workflow diagrams:** Include high-level flowcharts (e.g. the RAG pipeline or n8n flow) to illustrate how the system works. A clear diagram (like **Figure 1** above) helps non-technical leaders grasp the architecture at a glance.
+* **Benefits summary:** Present bullet-point “Business Impact” stats. For instance: “Reduced document processing time by X%,” “Self-service answers without IT tickets,” “Improved data security (no third-party),” etc. (This echoes the idea that RAG “makes AI accessible” and “preserves data privacy”.)
+* **Dashboard design:** Use a BI tool or charting library for polished visuals. Options include Plotly Dash, Metabase, Tableau, or even a custom React dashboard. What matters is clarity. Qlik’s guidance on executive dashboards is apt: *“An executive dashboard displays key performance indicators (KPIs) in one location so corporate officers can make agile, data-driven decisions”*.
+* **Next actions:** Include a “Recommended Next Steps” section. For example: “Expand pilot to Legal dept.”, “Review model fine-tuning options”, or “Begin ROI analysis for automation.” This guides leadership on how to proceed.
+
+**References:** Executive dashboards should aggregate KPIs for decision-makers. We leverage NVIDIA’s RAG benefit list (real-time data, privacy, reduced hallucinations) as impact points and AWS’s note on source attribution to emphasize trust. Dashboards can include these outcomes in plain terms.
+
+## 6. Support for Multiple LLMs and Verticals
+
+Build the system to be extensible across models and industries:
+
+* **Pluggable LLM framework:** Architect an abstraction layer for LLM backends. For example, use a standard interface (like OpenAI-compatible APIs or LangChain’s `LLM` classes) so new models can be added by changing configuration, not code. For open models, continue using vLLM (it also supports [Mistral models](https://github.com/vllm-project/vllm)). Indeed, Mistral AI recommends vLLM as a deployment engine for Mistral models. For closed-source models (e.g. Anthropic Claude, Google Gemini), integrate via their cloud APIs under the same abstract interface. This “LLM-agnostic” design ensures you can plug in Gemini, Mistral, Claude, etc. with minimal refactoring.
+* **Multi-vertical design:** Support different industry domains (Legal, HR, Finance, etc.) by modularizing content and prompts. Maintain separate document collections or indexes per vertical. Provide industry-specific prompt templates or few-shot examples (e.g. legal Q\&A vs. HR policy Q\&A). In the UI, allow selecting a “vertical” so the system loads the appropriate knowledge base and guidelines. For instance, the Legal vertical might load a corpus of contracts and case law; HR loads employee handbook docs. This way the same RAG+LLM engine can serve any department.
+* **Customizability:** Plan for future fine-tuning or prompt-engineering. For truly domain-specific use-cases, later one might fine-tune a private LLM on company data. The architecture should allow inserting a fine-tuned model as a drop-in replacement.
+* **Frameworks:** Tools like LangChain or LlamaIndex inherently support multiple models and can switch between vector stores and LLMs by config. Use environment variables or an admin settings page to configure which model or endpoint each client/tenant uses.
+
+**Tools:** Continue using [vLLM](https://github.com/vllm-project/vllm) for self-hosted models (LLaMA, Mistral). For managed models, use the respective APIs (e.g. [Anthropic API](https://docs.anthropic.com) for Claude). The Mistral docs confirm vLLM’s suitability for on-prem Mistral deployment.
+
+## 7. Security, Privacy and Compliance
+
+Given sensitive enterprise data, enforce strict security and compliance:
+
+* **Data isolation:** Host all components within the company’s cloud or data center. Use **single-tenant** instances (no shared infrastructure). For example, run the vector DB and LLM inference on a VPC or on-prem servers so that no document content ever goes to external internet. As Skyflow notes, private LLMs (self-hosted or via VPC) keep sensitive data fully in-house. The diagram from Skyflow illustrates moving both the vector DB and LLM internal so “no information…is transferred across the Internet”.
+* **Network security:** Enforce TLS encryption in transit for all API calls (LLM endpoints, web UI, n8n workflows). Use a private Virtual Network and firewall rules so only authorized subnets can reach the LLM service. For CoreWeave (or any cloud), use private networking or VPN.
+* **Authentication & auditing:** Use strong authentication (JWT, OAuth) for user access. Already implemented JWT auth and audit logs should record **all** actions (document ingestion, queries, administrative changes). Store logs in a secure, immutable system. Ensure logs include user IDs, timestamps, and actions, as required for compliance audits.
+* **Data encryption at rest:** Encrypt document storage and vector database. ChromaDB can be configured with disk encryption. Vector stores like Qdrant/Weaviate support encrypted volumes or cloud KMS. Key material (LLM weights, DB keys) should be stored securely (e.g. in HashiCorp Vault).
+* **Model governance:** Be mindful of “model poisoning” or prompt injection. Implement input validation and rate limits on queries. Keep the LLM versions updated and retrain on sanitized data. For compliance standards (e.g. GDPR, HIPAA if relevant), ensure data removal and user consent mechanisms if personal data is involved.
+* **Third-party API caution:** If integrating external LLM APIs (Gemini, Claude), use only private API endpoints (e.g. Google Cloud’s VPC Service Controls) to prevent data egress. Prefer fully private models whenever possible; this aligns with guidelines that “any sensitive data will only be available within a controlled environment”.
+* **Privacy-by-design:** Do not log or store the content of queries beyond what’s needed for audit. Consider anonymizing logs. Ensure that any employee queries (which may contain PII) are handled per company policy.
+
+**References:** Private LLM architectures inherently bolster privacy because data never leaves the corporate boundary. NVIDIA similarly emphasizes that a self-hosted RAG solution “preserves data privacy” by keeping everything on-prem. Follow industry best practices (OWASP, NIST) for web app security and regularly review compliance requirements for each vertical (e.g. legal restrictions on data handling).
+
+## 8. Extensibility Strategy
+
+To ensure long-term versatility:
+
+* **Modular design:** Keep each component (UI, workflows, LLM engine, vector DB) as independent services with well-defined interfaces. This allows swapping one without breaking others. For example, the React frontend calls a generic `/api/llm-completion` endpoint, so you could replace Llama with any model behind that endpoint.
+* **Configuration-driven:** Use config files or an admin UI to enable/disable modules. To support a new vertical, an admin should be able to upload a new document corpus or set up a new n8n workflow without code changes.
+* **Scalability:** Architect for scale-out. Use container orchestration (Kubernetes on CoreWeave) to scale the LLM and workflow services per tenant. For multi-model support, containerize each model server (e.g. one pod for LLaMA3, one for Mistral), and route requests based on user selection.
+* **Documentation & templates:** Provide templates for common verticals. E.g. an HR template that includes a sample HR policy corpus and pre-written prompts, a legal template for contracts. This jump-starts adoption in new departments.
+* **Maintenance:** Regularly update model versions and dependencies. Because the backend is LLM-agnostic, swapping in a new model should be straightforward. For example, adding a new Claude model might just involve updating an API key and endpoint in config.
+
+By following these steps, the engineering team can build a robust, secure AI workflow platform that any department can customize. Senior leaders get clear dashboards and ROI summaries, while staff get a friendly no-code interface. The system stays extendable and compliant as it grows.
+
+**Sources:** Citations above support our technical choices (vLLM model support, CoreWeave GPU/cloud benefits, RAG design, n8n integrations, executive dashboard principles, etc.). All recommendations follow current best practices in AI/ML deployment.
+===============
+Below is a side-by-side comparison of how our “cookbook” approach applies to three scenarios—Law Firm, Healthcare, and Internal HR Policies—mapped against the same phases and components. The final column explains each aspect in super-simple, real-life terms for a non-technical 15-year-old.
+
+Aspect	Law Firm	Healthcare	Internal HR Policies	15-Year-Old Explanation (Analogy)
+Domain & Objective	Build a private legal analyst: ingest case law, filings, contracts; answer Qs; summarize docs.	Build a private clinical assistant: ingest medical records, research papers; answer clinical Qs; summarize patient notes.	Build a private HR assistant: ingest company handbooks, policies; answer employee Qs; summarize benefits and procedures.	Choosing a “theme” for your helper—like deciding if you’re cooking Italian (law), French (healthcare), or Mexican (HR) dishes.
+Key Fields (Spec Inputs)	domain=legal
+data_sources=[“case_law_DB”,“contracts_drive”]
+throughput=100
+compliance_flags=[“privilege_law”]	domain=healthcare
+data_sources=[“EHR_api”,“research_PDFs”]
+throughput=50
+compliance_flags=[“HIPAA”]	domain=hr
+data_sources=[“hr_handbooks”,“payroll_CSV”]
+throughput=200
+compliance_flags=[“GDPR”]	Recipe ingredients—you tell the app: “We’re in legal, we need contracts and court cases; we serve 100 users; must follow privilege rules,” just like saying “I need flour, sugar, and eggs.”
+Phase I Prompt (SpecBuilder)	Asks one-by-one:
+“Which legal docs? Why?”
+Clarifies privilege concerns.	Asks:
+“Which patient data sources? Any PHI fields?”
+Clarifies HIPAA needs.	Asks:
+“Which HR policies? Any personal data?”
+Clarifies GDPR rules.	Friendly quiz—the helper asks simple questions: “Do you need pizza or pasta?” Here: “Do you need patient records or lab reports?”
+Phase II.1 (SolutionDesigner)	Generates YAML services:
+- Legal-LLM-API
+- ChromaDB-legal
+- n8n-legal-flows	Generates YAML services:
+- Clinical-LLM-API
+- ChromaDB-health
+- n8n-health-flows	Generates YAML services:
+- HR-LLM-API
+- ChromaDB-hr
+- n8n-hr-flows	Kitchen layout plan—where you put the oven, table, and fridge.
+Phase II.2 (IaCGenerator)	Terraform code (main.tf, variables.tf):
+- Dual A100 GPU nodes on CoreWeave
+- Private network
+- ChromaDB container
+- vLLM service	Terraform code:
+- GPU nodes for model inference
+- VPC in private cloud region
+- ChromaDB container with encrypted volumes	Terraform code:
+- Standard CPU nodes
+- VPC or on-prem servers
+- ChromaDB container
+- Smaller model footprint	Shopping list + instructions—“Buy two big ovens, one fridge, and set timers.”
+Phase II.3 (WorkflowBuilder)	n8n flow JSON:
+1. Watch “Case Files” folder
+2. PDF parser → embed to ChromaDB
+3. Summarize via LLM → Slack to paralegal	n8n flow JSON:
+1. Monitor “EHR uploads”
+2. OCR & chunk patient notes → embed
+3. Summarize / extract vitals → notify care team	n8n flow JSON:
+1. Watch “HR uploads” folder
+2. Parse PDFs/CSVs → embed
+3. Answer policy Qs → email/Slack to employees	Robot chef steps—“Grab dough, flatten, bake, slide onto plate.”
+Phase II.4 (CICDArchitect)	GitHub Actions:
+- Lint Terraform
+- Terraform plan/apply on approval
+- Smoke test /health	Same pipeline, plus:
+- HIPAA compliance scan
+- Data deletion test	Same pipeline, plus:
+- GDPR data deletion workflow test	Quality check—“Taste one cookie before you bake 50 more.”
+Local Sandbox (Docker Compose)	Services: FastAPI, React UI, n8n, ChromaDB, Supabase PG + RLS, GPT-stub	Same, with GPT-stub and dummy EHR data	Same, with dummy HR CSVs and handbook files	Play kitchen—a toy oven and pretend ingredients to practice before the real bake.
+Phase III Observability	Metrics: token usage, latency, audit logs of every prompt/Q&A, RAG hit ratio	Metrics: same + PHI access logs, embedding drift alerts	Metrics: same + PII access logs, policy update drift	Oven thermometer + timer—you watch temperature and time so cookies don’t burn.
+Security & Compliance	RLS enforced, JWT auth, IP allow lists, audit logs, tfsec scans, privilege law flags	RLS, JWT, VPC isolation, PHI encryption, audit retention, HIPAA/GDPR flags, tfsec scans	RLS, JWT, VPC, PII encryption, GDPR flags, audit retention, tfsec scans	Safety checks—“Wear oven mitts, keep a fire extinguisher.”
+Estimated Cost	~$1,200/mo GPU hosting + infra overhead	Higher GPU cost + compliance audit cost	Lower GPU cost (smaller model) + standard infra cost	Budgeting—“$20 for ingredients”
+End Result	A private “GPT-4-tier” legal analyst that paralegals can use without IT help	A private clinical assistant for doctors/nurses to query records and literature	A private HR bot for employees to ask about benefits, policies, paid time off	Freshly baked cookies—delicious, hot, and exactly how you planned them.
+Top 10 Enterprise Use Cases
+Use Case	Description & Privacy Focus
+Legal – Case/Contract Analysis	Summarize contracts, precedents, filings; answer complex case-law queries. Maintains confidentiality of client/case data; on-prem ensures compliance with privilege laws.
+Finance – Reports & Auditing	Interpret earnings reports, audit logs, compliance rules. Provides decision support to CFO teams. Keeps sensitive financial data in-house to meet regulatory requirements.
+HR – Policy & Employee Q&A	Internal HR assistant: answers benefits/policy questions, onboards staff with summarized manuals. Secures personal employee data and sensitive HR records on-site.
+Customer Support – Private KB	AI-powered knowledge base using company’s internal docs. Responds to support tickets using private data (product manuals, previous tickets). No customer info leaks.
+R&D/Engineering – Technical Docs	Search and summarize patents, design docs, and technical specs. Protects IP by hosting all R&D knowledge internally (no SaaS cloud indexing).
+Compliance/Audit	Automatically checks new regulations, summarizes changes, assists audit teams. Ensures proprietary procedures and audit trails remain private and auditable.
+Marketing – Insights & Content	Analyzes proprietary market research, creative briefs, and brand guidelines. Generates summaries/ideas without exposing confidential marketing strategies externally.
+Operations – Logs & Maintenance	Parses maintenance manuals, sensor logs, and SOPs for troubleshooting. Keeps operational data (e.g. equipment logs) secure within the enterprise network.
+Sales – CRM & Proposals	Summarizes sales calls, drafts proposals, retrieves client histories from CRM. Protects customer data and internal forecasts by processing on-premises.
+Healthcare/Pharma (if applicable)	(If in scope) Summarizes clinical notes, trial data, medical literature. Note: Strict HIPAA/Regulatory compliance; fully private deployment is essential in healthcare. 
+
+ 1. Why We Need a Cost Estimator
+Right now, our wizard collects things like:
+
+Domain & Data Volume (e.g. 50 GB of documents)
+
+Throughput & Concurrency (e.g. 100 QPS, 20 concurrent users)
+
+LLM Provider & Token Budget (e.g. Gemini 2.5 Pro vs. LLaMA 3)
+
+Vector Store Choice (ChromaDB vs. Weaviate)
+
+GPU Resources (number of A100s, runtime hours)
+
+Storage & Bandwidth (size of embedding DB, S3/VM storage)
+
+But we never turn those into an approximate $$/month figure. To advise a CFO or CEO, you need to show, for example:
+
+“Running two A100 GPUs 24×7 = $1,728/mo”
+
+“ChromaDB on a 4 vCPU, 16 GB VM = $25/mo”
+
+“Gemini usage at 100 k tokens/mo = $8/mo”
+
+“Supabase Pro plan = $25/mo”
+
+“Expected S3 storage (100 GB) = $2/mo”
+
+Only then can a non-technical executive look at a simple “Total: $1,800–$2,000 per month” and say, “Okay, let’s budget for $25k per year.”
+
+2. Where to Integrate Cost Estimation in the App
+We need to add a Cost Estimator microservice (inside our FastAPI layer) and tie it into the UI at two major points:
+
+During the SpecBuilder Wizard (Pre-Generation): As the user answers each step (e.g. “How many GPUs?”, “Which LLM?”, “How many tokens per month?”), we can update a “Cost Preview” panel on the right side of the wizard. This lets them immediately see how toggling “2 A100s” vs. “1 A100,” or “Gemini” vs. “LLaMA,” changes the estimated monthly spend.
+
+On the Project Dashboard (Post-Generation): Once a spec is finalized and artifacts are generated, we store the finalized cost estimate alongside the spec in the database and show an “Itemized Cost Breakdown” on the Project Detail page. From there, executives can export or share that cost summary with finance.
+
+3. Designing the Cost Model
+At its core, our Cost Estimator is just a collection of pricing formulas and lookup tables. Below is a sample pricing table (all prices per month) that we’ll encode in our service:
+
+Resource	Unit	Price (USD)	Notes / Formula
+A100 GPU (CoreWeave)	$1.20 per GPU-hour	$1.20/hr	If user requests N GPUs, cost = 1.20 × N × 24 × 30
+H100 GPU (CoreWeave)	$2.50 per GPU-hour	$2.50/hr	Same formula but with a higher rate
+ChromaDB VM (self-host)	4 vCPU / 16 GB RAM / 100 GB SSD	$22/mo	Single VM runs both ChromaDB server and small Redis cache
+Weaviate Managed	Small instance	$50/mo	If user selects “Weaviate” instead of ChromaDB
+Redis Cache (managed)	Small cluster	$15/mo	Only if user opts for a managed Redis; else we assume self-hosted Redis is zero incremental cost
+Supabase Pro (metadata/auth/db)	Flat fee	$25/mo	Free tier covers up to 2 GB storage, but beyond that, Pro is recommended for production
+LLM Token Cost (Gemini 2.5 Pro)	$0.00008 per token	$0.00008/token	If user budgets T tokens per month, cost = 0.00008 × T
+LLM Token Cost (OpenAI GPT-4)	$0.03 per 1k tokens (gpt-4-o)	$0.00003/token	For a comparison option if they choose GPT-4 on OpenAI (not recommended in private mode)
+Storage (S3 / GCS)	$0.023 per GB-mo (S3 Standard)	$0.023/GB/mo	If user uploads D GB of docs, cost = 0.023 × D
+Kubernetes Control Plane (CoreWeave)	Flat fee	$100/mo	Only if they run a full managed K8s cluster. If they use a single VM (K3s), assume $0 provisioning cost.
+Small App VM (React / FastAPI)	2 vCPU / 4 GB RAM	$15/mo	We’ll estimate one VM each for UI and API, or they can be co-hosted on a single 4 vCPU VM (still $15/mo)
+n8n Self-Hosted VM	2 vCPU / 4 GB RAM	$10/mo	If they run n8n themselves. If they use n8n Cloud free tier, cost = $0 (up to 100 runs/mo)
+Monitoring (Grafana Cloud free)	Up to 10 k metrics	$0/mo	If they exceed 10 k metrics, paid plans start at $50/mo. We’ll presume free tier for a small pilot.
+Bandwidth / Data Transfer	$0.09 per GB transfer out	$0.09/GB	Minimal for internal AI traffic; assume 10 GB egress/mo = $0.90
+Fine-Tuning Overhead	$1.20 × 4 GPUs × 10 hours = $48	$48 (one-time)	Only if they explicitly run a fine-tune job. Not included monthly unless they schedule fine-tuning each month
+
+Example Cost Formulas
+GPU Cost
+
+If Spec asks for num_gpus = 2 running continuously,
+gpu_cost = 1.20 (USD/hr) × 2 (GPUs) × 24 (hrs/day) × 30 (days) = \$1,728/mo
+
+Vector DB Cost
+
+If Spec chooses ChromaDB self-host and we put it on a shared 4 vCPU VM,
+db_cost = \$22/mo (flat)
+
+LLM Token Cost
+
+If Spec sets token_budget = 100,000 tokens/mo and they pick Gemini 2.5 at $0.00008/token,
+llm_cost = 100,000 × 0.00008 = \$8/mo
+
+Storage Cost
+
+If they upload data_volume = 100 GB of documents to S3,
+storage_cost = 100 × 0.023 = \$2.30/mo
+
+VM Cost (UI + Backend)
+
+We lump React + FastAPI on a single 2 vCPU / 4 GB VM:
+vm_cost = \$15/mo
+
+Alternatively, if they insist on two separate VMs, it would be \$30/mo, but we’ll default to co-hosting to save money.
+
+n8n Cost
+
+If they choose self-host, n8n_cost = \$10/mo
+
+If they choose n8n Cloud free, n8n_cost = \$0/mo (for up to 100 runs)
+
+If they exceed 100 runs, they can upgrade to “Starter” plan at $20/mo for 10k runs.
+
+K8s Cost
+
+If a production environment uses managed K8s, k8s_cost = \$100/mo + any node costs
+
+In a small pilot, they can run everything on Docker Compose or K3s on a $10/mo VM, so k8s_cost = \$0.
+
+Bandwidth Cost
+
+If they egress ~10 GB from LLM calls or RAG results, bandwidth_cost = 10 × 0.09 = \$0.90/mo
+
+For an internal on-prem install, bandwidth cost = $0.
+
+Total Monthly Estimate (Sample)
+Let’s assume a “medium pilot” spec:
+
+2 A100 GPUs running 24×7: $1,728
+
+ChromaDB self-host VM: $22
+
+Supabase Pro: $25
+
+LLM Token Budget 100 k tokens (Gemini): $8
+
+Storage 100 GB (S3): $2.30
+
+UI/Backend co-hosted VM: $15
+
+n8n self-host: $10
+
+K8s (use Docker Compose instead, so $0)
+
+Bandwidth: $0.90
+Total ≈ $1,811.20 per month
+
+4. Implementation Steps to Add Cost Estimation
+To integrate the above cost calculations into your existing web app, you’ll need to:
+
+Build a “Pricing Data” JSON or Database Table
+
+Create a file pricing.json (or a new table pricing in Postgres) that lists all unit costs and formulas. For example:
+
+json
+Copy
+Edit
+{
+  "gpu": {
+    "a100": 1.20,
+    "h100": 2.50
+  },
+  "db_vm": {
+    "4cpu16gb": 22.00
+  },
+  "vector_store": {
+    "chroma": 22.00,
+    "weaviate_managed": 50.00
+  },
+  "redis": {
+    "managed": 15.00,
+    "self_hosted": 0.00
+  },
+  "supabase": {
+    "free": 0.00,
+    "pro": 25.00
+  },
+  "llm_token": {
+    "gemini": 0.00008,
+    "gpt4": 0.00003,
+    "claude": 0.00250
+  },
+  "storage_per_gb": 0.023,
+  "vm_cohost": 15.00,
+  "n8n_self_hosted": 10.00,
+  "n8n_cloud_free": 0.00,
+  "k8s_control_plane": 100.00,
+  "bandwidth_per_gb": 0.09
+}
+Cost Estimator Microservice
+
+Under /services/cost_estimator.py, write a class that loads pricing.json and exposes methods:
+
+python
+Copy
+Edit
+import json
+
+class CostEstimator:
+    def __init__(self, pricing_file="pricing.json"):
+        with open(pricing_file) as f:
+            self.pricing = json.load(f)
+
+    def estimate_gpu(self, provider, num_gpus, hours_per_day=24, days_per_month=30):
+        rate = self.pricing["gpu"].get(provider)
+        if rate is None:
+            raise ValueError(f"Unknown GPU provider: {provider}")
+        return rate * num_gpus * hours_per_day * days_per_month
+
+    def estimate_vector_db(self, store_type):
+        return self.pricing["vector_store"].get(store_type, 0.00)
+
+    def estimate_redis(self, mode):
+        return self.pricing["redis"].get(mode, 0.00)
+
+    def estimate_supabase(self, plan):
+        return self.pricing["supabase"].get(plan, 0.00)
+
+    def estimate_llm_tokens(self, provider, token_budget):
+        rate = self.pricing["llm_token"].get(provider)
+        if rate is None:
+            raise ValueError(f"Unknown LLM provider: {provider}")
+        return rate * token_budget
+
+    def estimate_storage(self, data_volume_gb):
+        return data_volume_gb * self.pricing["storage_per_gb"]
+
+    def estimate_vm(self, vm_type="cohost"):
+        return self.pricing["vm_cohost"] if vm_type == "cohost" else 0.00
+
+    def estimate_n8n(self, mode):
+        return self.pricing["n8n_self_hosted"] if mode == "self_hosted" else 0.00
+
+    def estimate_k8s(self, mode):
+        return self.pricing["k8s_control_plane"] if mode == "managed" else 0.00
+
+    def estimate_bandwidth(self, gb):
+        return gb * self.pricing["bandwidth_per_gb"]
+
+    def estimate_total(self, specs: dict):
+        """
+        specs = {
+          "gpu": {"provider":"a100", "count":2},
+          "vector_store":"chroma",
+          "redis":"self_hosted",
+          "supabase":"pro",
+          "llm_provider":"gemini",
+          "token_budget":100000,
+          "storage_gb":100,
+          "vm_type":"cohost",
+          "n8n_mode":"self_hosted",
+          "k8s_mode":"none",
+          "bandwidth_gb":10
+        }
+        """
+        total = 0.00
+        total += self.estimate_gpu(specs["gpu"]["provider"], specs["gpu"]["count"])
+        total += self.estimate_vector_db(specs["vector_store"])
+        total += self.estimate_redis(specs["redis"])
+        total += self.estimate_supabase(specs["supabase"])
+        total += self.estimate_llm_tokens(specs["llm_provider"], specs["token_budget"])
+        total += self.estimate_storage(specs["storage_gb"])
+        total += self.estimate_vm(specs["vm_type"])
+        total += self.estimate_n8n(specs["n8n_mode"])
+        total += self.estimate_k8s(specs["k8s_mode"])
+        total += self.estimate_bandwidth(specs["bandwidth_gb"])
+        return round(total, 2)
+Expose a REST Endpoint
+
+In /api/cost.py:
+
+python
+Copy
+Edit
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from services.cost_estimator import CostEstimator
+
+router = APIRouter()
+estimator = CostEstimator()
+
+class CostRequest(BaseModel):
+    gpu: dict       # {"provider":"a100", "count":2}
+    vector_store: str
+    redis: str
+    supabase: str
+    llm_provider: str
+    token_budget: int
+    storage_gb: int
+    vm_type: str    # "cohost" or "separate"
+    n8n_mode: str   # "self_hosted" or "cloud_free"
+    k8s_mode: str   # "managed" or "none"
+    bandwidth_gb: int
+
+@router.post("/estimate")
+async def estimate_cost(req: CostRequest):
+    try:
+        total = estimator.estimate_total(req.dict())
+        # Also return itemized breakdown if desired
+        breakdown = {
+            "gpu_cost": estimator.estimate_gpu(req.gpu["provider"], req.gpu["count"]),
+            "vector_db_cost": estimator.estimate_vector_db(req.vector_store),
+            "redis_cost": estimator.estimate_redis(req.redis),
+            "supabase_cost": estimator.estimate_supabase(req.supabase),
+            "llm_cost": estimator.estimate_llm_tokens(req.llm_provider, req.token_budget),
+            "storage_cost": estimator.estimate_storage(req.storage_gb),
+            "vm_cost": estimator.estimate_vm(req.vm_type),
+            "n8n_cost": estimator.estimate_n8n(req.n8n_mode),
+            "k8s_cost": estimator.estimate_k8s(req.k8s_mode),
+            "bandwidth_cost": estimator.estimate_bandwidth(req.bandwidth_gb),
+        }
+        return {"total": total, "breakdown": breakdown}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+Integrate into the SpecBuilder Wizard (React)
+
+In your React CreateProject.jsx (or Streamlit), after the user has answered enough questions to fully populate a partial spec, call /api/cost/estimate with the following structure:
+
+js
+Copy
+Edit
+const specForCost = {
+  gpu: { provider: selectedGpu, count: numGpus },
+  vector_store: selectedVectorStore,      // e.g. "chroma"
+  redis: selectedRedisMode,               // "self_hosted" or "managed"
+  supabase: selectedSupabasePlan,         // "free" or "pro"
+  llm_provider: selectedLlmProvider,      // "gemini" or "llama3"
+  token_budget: parseInt(tokenBudget),
+  storage_gb: parseInt(uploadedDataSizeGb),
+  vm_type: selectedVmType,                // "cohost" or "separate"
+  n8n_mode: selectedN8nMode,              // "self_hosted" or "cloud_free"
+  k8s_mode: selectedK8sMode,              // "managed" or "none"
+  bandwidth_gb: parseInt(estimatedBandwidthGb),
+};
+
+// In React, using fetch or Axios:
+axios.post('/api/cost/estimate', specForCost)
+  .then(res => {
+    setCostBreakdown(res.data.breakdown);
+    setTotalCost(res.data.total);
+  })
+  .catch(err => console.error("Cost estimation error:", err));
+Display the result in a sticky sidebar or just below the form’s “Review Spec” section:
+
+jsx
+Copy
+Edit
+<Card title="Estimated Monthly Cost">
+  <p>Total: <strong>${totalCost}</strong></p>
+  <ul>
+    <li>GPU: ${costBreakdown.gpu_cost}</li>
+    <li>Vector DB: ${costBreakdown.vector_db_cost}</li>
+    <li>Redis: ${costBreakdown.redis_cost}</li>
+    <li>Supabase: ${costBreakdown.supabase_cost}</li>
+    <li>LLM Tokens: ${costBreakdown.llm_cost}</li>
+    <li>Storage: ${costBreakdown.storage_cost}</li>
+    <li>VM: ${costBreakdown.vm_cost}</li>
+    <li>n8n: ${costBreakdown.n8n_cost}</li>
+    <li>K8s: ${costBreakdown.k8s_cost}</li>
+    <li>Bandwidth: ${costBreakdown.bandwidth_cost}</li>
+  </ul>
+</Card>
+Store Cost Estimate with the Final Spec
+
+When the wizard completes (Phase I) and you’ve generated the final spec JSON, compute the cost one last time and save it in Supabase alongside the spec:
+
+python
+Copy
+Edit
+# In your FastAPI endpoint that finalizes the spec:
+from services.cost_estimator import CostEstimator
+
+@app.post("/api/requirements/finalize")
+async def finalize_spec(payload: SpecFinalizeRequest):
+    # existing logic to mark spec complete...
+    estimator = CostEstimator()
+    cost_info = estimator.estimate_total(payload.spec)
+    # Save in Postgres:
+    await supabase.table("specs").update({
+      "cost_breakdown": cost_info["breakdown"],
+      "cost_total": cost_info["total"]
+    }).eq("id", payload.spec_id).execute()
+    return {"status":"completed","cost":cost_info}
+Show Cost on Project Detail Page
+
+On the Project Detail page in React, retrieve cost_breakdown and cost_total from the spec record and render them in a read-only panel:
+
+jsx
+Copy
+Edit
+// In ProjectDetail.jsx
+useEffect(() => {
+  axios.get(`/api/requirements/${specId}`)
+    .then(res => {
+      setSpecData(res.data.spec);
+      setCostBreakdown(res.data.spec.cost_breakdown);
+      setTotalCost(res.data.spec.cost_total);
+    });
+}, [specId]);
+
+return (
+  <div>
+    {/* existing tabs: Spec, Artifacts, etc. */}
+    <Tab label="Cost">
+      <Card title="Monthly Cost Estimate">
+        <p><strong>Total:</strong> ${totalCost}</p>
+        <ul>
+          {Object.entries(costBreakdown).map(([key,val]) => (
+            <li key={key}>
+              {key.replace("_", " ").replace(/\b\w/g, c => c.toUpperCase())}: ${val}
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </Tab>
+  </div>
+);
+5. How It Feels to the End-User (Non-Technical Executive)
+During the Wizard:
+
+As soon as they choose “2 A100 GPUs”, they see “GPU: $1,728/mo” appear in the sidebar.
+
+If they switch to “1 A100”, the GPU line drops to “$864/mo” and the “Total” automatically updates.
+
+If they toggle “Use n8n Cloud Free” vs. “Self-Host n8n,” the “n8n” line changes between “$0” and “$10.”
+
+If they bump their Token Budget from 50 k tokens to 200 k, the “LLM Tokens” line goes from “$4” to “$16.”
+
+On the Project Detail Page:
+
+They click the “Cost” tab and see a neat, itemized list:
+
+GPU: $1,728
+
+Vector DB: $22
+
+Redis: $0
+
+Supabase: $25
+
+LLM Tokens: $8
+
+Storage: $2.30
+
+VM (UI/API): $15
+
+n8n: $10
+
+K8s: $0
+
+Bandwidth: $0.90
+
+Total: $1,811.20
+
+For Free-Tier Pilots:
+
+If they leave “Supabase” on Free, “n8n** on Cloud Free, “Redis** as Self-Hosted, and only run the GPUs 4 hours/day, the “Estimated Monthly Cost” might drop to $200/mo.
+
+The wizard should still show “Free Tier Available” badges next to each resource so they know where they can stay under $0. Example:
+
+Supabase: [Free Tier—No Cost]
+
+n8n: [Free Tier—Up to 100 runs]
+
+Redis: [Self-Host—No Cost]
+
+6. Summary of Required App Changes
+What to Add/Modify	Why / Benefit
+pricing.json / pricing table	Central source of truth for all unit costs and formulas
+CostEstimator service (Python)	Encapsulates all cost-calculation logic, easy to extend or tweak as pricing changes
+POST /api/cost/estimate endpoint	Allows UI to get real-time cost estimates as specs change
+Invoke CostEstimator during SpecWizard (React/Streamlit)	Show dynamic, incremental cost in sidebar—helps non-tech users understand trade-offs instantly
+Store cost breakdown & total in Supabase	Persist the user’s choices and their resulting cost; so we can display historical cost later
+Project Detail “Cost” tab (React)	Provides a clean, itemized cost summary for each deployed project, ideal for CFO/Finance review
+UI labels & tooltips	Explain “Why does GPU cost $x?” or “Free tier available”—these help non-tech executives grasp essentials.
+
+7. Example Pricing Scenarios
+Below are two quick scenarios to illustrate how our new cost estimator would work for different budgets and requirements:
+
+Scenario A: Small Pilot (Free Tier Focused)
+Specification	Value	Estimated Cost
+GPUs	0 GPUs (use only RAG/infrequent LLM calls)	$0/mo
+Vector Store	ChromaDB self-host on existing VM	$0 (dev VM)
+Redis	Self-Host on same VM	$0
+Supabase	Free Tier	$0
+LLM Provider	Gemini Free Trial (Up to $300 in credits)	$0 (credits)
+Token Budget	50 k tokens/mo	$0 (credits)
+Storage	10 GB (small pilot)	$10 × 0.023 = $0.23
+UI/API VM	Co-host on same Dev VM	$0
+n8n	Cloud Free (<= 100 runs)	$0
+K8s	None (Docker Compose on Dev VM)	$0
+Bandwidth	5 GB internal / external	$0.45
+Total Estimated Cost (Scenario A)		$0.68/mo
+
+Takeaway: Under $1/mo for an early proof-of-concept.
+
+Scenario B: Medium Pilot (One A100, Limited Production)
+Specification	Value	Estimated Cost
+GPUs	1 A100, 12 hrs/day	1.20 × 1 × 12 × 30 = $432
+Vector Store	ChromaDB on 4 vCPU VM	$22
+Redis	Self-Host on same VM	$0
+Supabase	Pro Plan	$25
+LLM Provider	LLaMA 3 (self-hosted)	$0 (GPU paid separately)
+Token Budget	100 k tokens/mo (Gemini backup for overflow)	$8
+Storage	50 GB	50 × 0.023 = $1.15
+UI/API VM	2 vCPU / 4 GB VM	$15
+n8n	Self-Host on same VM	$10
+K8s	None (Docker Compose pilot)	$0
+Bandwidth	10 GB	$0.90
+Total Estimated Cost (Scenario B)		$513.05/mo
+
+Takeaway: Roughly $500/mo for a low-volume, half-day GPU pilot with production-like scaffolding.
+
+8. Conclusion
+Yes, with the addition of a Cost Estimator microservice and UI integration as described above, your platform can instantly show non-technical executives a clear monthly budget based on their AI requirements.
+
+Once integrated, every time they tweak a slider (“# of GPUs,” “Token Budget,” “Storage,” “Vector Store”), the app will recalculate and display the updated cost breakdown.
+
+This meets your goal of a fully informed AI consultant that can advise “Our legal AI bot will cost $X–$Y per month, here’s the line-item breakdown, and we can adjust if you need a cheaper pilot or a heavier production setup.”
