@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FileText, MessageSquare, Cloud, HardDrive, Settings, BarChart3 } from 'lucide-react';
 import { useProjects } from './ProjectProvider';
-import { useCloudDocuments } from '@/hooks/useCloudDocuments';
+import { useLocalDocuments } from '@/hooks/useLocalDocuments';
 import CloudDocumentUpload from './CloudDocumentUpload';
 import LocalDocumentUpload from './LocalDocumentUpload';
 import CloudRAGChat from './CloudRAGChat';
@@ -16,10 +16,11 @@ import ProductionReadinessCheck from './ProductionReadinessCheck';
 
 const Dashboard: React.FC = () => {
   const { currentProject } = useProjects();
-  const [activeTab, setActiveTab] = useState('cloud');
+  const [activeTab, setActiveTab] = useState('local');
   const [showProductionCheck, setShowProductionCheck] = useState(false);
 
-  const { documents } = useCloudDocuments(currentProject?.id || '');
+  // Use local documents for document count in onboarding
+  const { documents: localDocuments } = useLocalDocuments(currentProject?.id || '');
   const hasCompletedChat = false;
 
   if (!currentProject) {
@@ -71,7 +72,7 @@ const Dashboard: React.FC = () => {
       <div className="space-y-6">
         <OnboardingGuide
           projectId={currentProject.id}
-          documentCount={documents.length}
+          documentCount={localDocuments.length}
           hasCompletedChat={hasCompletedChat}
         />
 
