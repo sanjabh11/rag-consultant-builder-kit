@@ -89,11 +89,35 @@ export const useLocalDocuments = (projectId: string) => {
     if (!query.trim()) return documents;
     
     const searchTerm = query.toLowerCase();
-    return documents.filter(doc => 
-      doc.fileName.toLowerCase().includes(searchTerm) ||
-      doc.content.toLowerCase().includes(searchTerm) ||
-      doc.chunks?.some(chunk => chunk.text.toLowerCase().includes(searchTerm))
-    );
+    const searchTerms = searchTerm.split(/\s+/).filter(term => term.length > 2);
+    
+    return documents.filter(doc => {
+      // Check filename
+      if (doc.fileName.toLowerCase().includes(searchTerm)) return true;
+      
+      // Check content
+      if (doc.content.toLowerCase().includes(searchTerm)) return true;
+      
+      // Enhanced chunk search with keywords and entities
+      return doc.chunks?.some(chunk => {
+        // Text search
+        if (chunk.text.toLowerCase().includes(searchTerm)) return true;
+        
+        // Keywords search (if available)
+        const keywords = (chunk as any).metadata?.keywords || [];
+        if (keywords.some((kw: string) => 
+          searchTerms.some(term => kw.toLowerCase().includes(term))
+        )) return true;
+        
+        // Entities search (if available)
+        const entities = (chunk as any).metadata?.entities || [];
+        if (entities.some((entity: string) => 
+          searchTerms.some(term => entity.toLowerCase().includes(term))
+        )) return true;
+        
+        return false;
+      });
+    });
   };
 
   const getTotalSize = () => {
