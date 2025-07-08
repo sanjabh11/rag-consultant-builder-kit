@@ -12,6 +12,8 @@ import DocumentManager from '@/components/DocumentManager';
 import CostTrackingDashboard from '@/components/CostTrackingDashboard';
 import EnhancedRAGInterface from '@/components/EnhancedRAGInterface';
 import ProjectCreationWizard from '@/components/ProjectCreationWizard';
+import MultiVerticalConfiguration from '@/components/MultiVerticalConfiguration';
+import NoCodeConfigurator from '@/components/NoCodeConfigurator';
 import { 
   FileText, 
   MessageSquare, 
@@ -20,7 +22,10 @@ import {
   Crown,
   Workflow,
   Building,
-  Plus
+  Plus,
+  Palette,
+  Code,
+  Users
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -86,9 +91,9 @@ const Dashboard = () => {
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${currentCosts.total.toFixed(2)}</div>
+              <div className="text-2xl font-bold">${currentCosts?.total ? currentCosts.total.toFixed(2) : '0.00'}</div>
               <p className="text-xs text-muted-foreground">
-                {costAlerts.length > 0 ? `${costAlerts.length} alerts` : 'Within budget'}
+                {costAlerts?.length > 0 ? `${costAlerts.length} alerts` : 'Within budget'}
               </p>
             </CardContent>
           </Card>
@@ -99,9 +104,9 @@ const Dashboard = () => {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{usageMetrics.documentsProcessed}</div>
+              <div className="text-2xl font-bold">{usageMetrics?.documentsProcessed || 0}</div>
               <p className="text-xs text-muted-foreground">
-                {usageMetrics.storageUsed.toFixed(2)} GB used
+                {usageMetrics?.storageUsed ? usageMetrics.storageUsed.toFixed(2) : '0.00'} GB used
               </p>
             </CardContent>
           </Card>
@@ -112,7 +117,7 @@ const Dashboard = () => {
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{usageMetrics.queriesExecuted}</div>
+              <div className="text-2xl font-bold">{usageMetrics?.queriesExecuted || 0}</div>
               <p className="text-xs text-muted-foreground">
                 This month
               </p>
@@ -125,7 +130,7 @@ const Dashboard = () => {
               <Building className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{tenantMemberships.length}</div>
+              <div className="text-2xl font-bold">{tenantMemberships?.length || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Active memberships
               </p>
@@ -136,11 +141,13 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <Tabs defaultValue="chat" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="chat">AI Chat</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           {isEnterpriseTenant && <TabsTrigger value="enhanced-rag">Enhanced RAG</TabsTrigger>}
           {isEnterpriseTenant && <TabsTrigger value="analytics">Analytics</TabsTrigger>}
+          <TabsTrigger value="verticals">Multi-Vertical</TabsTrigger>
+          <TabsTrigger value="nocode">No-Code</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -163,6 +170,14 @@ const Dashboard = () => {
             <CostTrackingDashboard />
           </TabsContent>
         )}
+
+        <TabsContent value="verticals" className="space-y-6">
+          <MultiVerticalConfiguration />
+        </TabsContent>
+
+        <TabsContent value="nocode" className="space-y-6">
+          <NoCodeConfigurator />
+        </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -220,13 +235,13 @@ const Dashboard = () => {
                     {user?.id?.substring(0, 8)}...
                   </p>
                 </div>
-                {currentTenant && hasPermission('tenant', 'read') && (
+                {currentTenant && hasPermission && hasPermission('tenant', 'read') && (
                   <div>
                     <label className="text-sm font-medium">Permissions</label>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {tenantMemberships
-                        .find(m => m.tenant_id === currentTenant.id)
-                        ?.permissions.slice(0, 3)
+                        ?.find(m => m.tenant_id === currentTenant.id)
+                        ?.permissions?.slice(0, 3)
                         .map((perm, index) => (
                           <Badge key={index} variant="outline" className="text-xs">
                             {perm === '*' ? 'All' : perm}
