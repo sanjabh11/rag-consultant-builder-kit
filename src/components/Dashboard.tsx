@@ -1,269 +1,261 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/hooks/useAuth';
+import { useEnterpriseAuth } from '@/hooks/useEnterpriseAuth';
+import { useCostTracking } from '@/hooks/useCostTracking';
+import RAGChatInterface from '@/components/RAGChatInterface';
+import DocumentManager from '@/components/DocumentManager';
+import CostTrackingDashboard from '@/components/CostTrackingDashboard';
+import EnhancedRAGInterface from '@/components/EnhancedRAGInterface';
+import ProjectCreationWizard from '@/components/ProjectCreationWizard';
 import { 
-  Upload, 
-  MessageSquare, 
   FileText, 
+  MessageSquare, 
   BarChart3, 
   Settings,
-  Brain,
-  DollarSign,
-  Building2,
-  Zap
+  Crown,
+  Workflow,
+  Building,
+  Plus
 } from 'lucide-react';
-import { useLocalDocuments } from '@/hooks/useLocalDocuments';
-import { useProjects } from '@/hooks/useProjects';
-import { useTenant } from '@/hooks/useTenantContext';
-import { useCostTracking } from '@/hooks/useCostTracking';
-import LocalDocumentUpload from './LocalDocumentUpload';
-import RAGChatInterface from './RAGChatInterface';
-import AdvancedDocumentProcessor from './AdvancedDocumentProcessor';
-import CostTrackingDashboard from './CostTrackingDashboard';
-import MultiTenantSetup from './MultiTenantSetup';
-import EnhancedRAGInterface from './EnhancedRAGInterface';
-import { TenantProvider } from '@/hooks/useTenantContext';
 
-const DashboardContent: React.FC = () => {
-  const { projects, loading: projectsLoading } = useProjects();
-  const { currentTenant } = useTenant();
-  const { currentCosts, utilizationPercentage } = useCostTracking();
-  const currentProjectId = projects[0]?.id || 'local-project';
-  const { documents, totalSize, totalDocuments } = useLocalDocuments(currentProjectId);
-  
-  const [activeTab, setActiveTab] = useState('overview');
+const Dashboard = () => {
+  const { user } = useAuth();
+  const { currentTenant, tenantMemberships, hasPermission } = useEnterpriseAuth();
+  const { currentCosts, usageMetrics, costAlerts } = useCostTracking();
+  const [activeProject, setActiveProject] = useState('default');
+  const [showProjectWizard, setShowProjectWizard] = useState(false);
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  // Show project creation wizard if no tenant
+  if (!currentTenant && user) {
+    return <ProjectCreationWizard onComplete={() => window.location.reload()} />;
+  }
 
-  const getUtilizationColor = (percentage: number) => {
-    if (percentage >= 90) return 'bg-red-500';
-    if (percentage >= 70) return 'bg-yellow-500';
-    return 'bg-green-500';
-  };
+  const isEnterpriseTenant = currentTenant?.subscription_plan === 'enterprise';
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
+    <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            AI-Powered Document Analytics
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            {isEnterpriseTenant && <Crown className="h-8 w-8 text-yellow-500" />}
+            AI Platform Dashboard
           </h1>
-          <p className="text-gray-600 mt-2">
-            {currentTenant?.name || 'Local Workspace'} • Multi-tenant RAG Platform
-          </p>
+          {currentTenant && (
+            <p className="text-gray-600 mt-1 flex items-center gap-2">
+              <Building className="h-4 w-4" />
+              {currentTenant.name}
+              <Badge variant={
+                currentTenant.subscription_plan === 'enterprise' ? 'destructive' :
+                currentTenant.subscription_plan === 'pro' ? 'default' : 'secondary'
+              }>
+                {currentTenant.subscription_plan}
+              </Badge>
+            </p>
+          )}
         </div>
-        <div className="flex items-center gap-3">
-          <Badge className="bg-blue-100 text-blue-800">
-            {currentTenant?.subscription.plan.toUpperCase() || 'LOCAL'}
-          </Badge>
-          <Badge variant="outline">
-            {totalDocuments} Documents
-          </Badge>
+        
+        <div className="flex gap-2">
+          {isEnterpriseTenant && (
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.href = '/enterprise'}
+            >
+              <Crown className="h-4 w-4 mr-2" />
+              Enterprise Console
+            </Button>
+          )}
+          <Button onClick={() => setShowProjectWizard(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Project
+          </Button>
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="border-l-4 border-l-blue-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Documents</p>
-                <p className="text-2xl font-bold text-gray-900">{totalDocuments}</p>
-              </div>
-              <FileText className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-green-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Storage Used</p>
-                <p className="text-2xl font-bold text-gray-900">{formatFileSize(totalSize)}</p>
-              </div>
-              <BarChart3 className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-purple-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Monthly Cost</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ${currentCosts.total.toFixed(4)}
-                </p>
-              </div>
-              <DollarSign className="h-8 w-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-orange-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Budget Usage</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {utilizationPercentage.toFixed(1)}%
-                </p>
-              </div>
-              <div className="w-8 h-8 flex items-center justify-center">
-                <div className={`w-6 h-6 rounded-full ${getUtilizationColor(utilizationPercentage)}`} />
-              </div>
-            </div>
-            <Progress 
-              value={Math.min(utilizationPercentage, 100)} 
-              className="mt-2 h-2"
-            />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Content Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 lg:grid-cols-6">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="upload" className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Upload
-          </TabsTrigger>
-          <TabsTrigger value="chat" className="flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            Chat
-          </TabsTrigger>
-          <TabsTrigger value="advanced-rag" className="flex items-center gap-2">
-            <Brain className="h-4 w-4" />
-            Advanced RAG
-          </TabsTrigger>
-          <TabsTrigger value="costs" className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />
-            Costs
-          </TabsTrigger>
-          <TabsTrigger value="tenant" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            Workspace
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-6">
-          {/* Document Overview */}
+      {/* Enterprise Overview Cards */}
+      {isEnterpriseTenant && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Document Overview
-              </CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Monthly Costs</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              {documents.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                  <p className="text-gray-600 mb-4">No documents uploaded yet</p>
-                  <Button onClick={() => setActiveTab('upload')}>
-                    Upload Your First Document
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {documents.reduce((sum, doc) => sum + (doc.chunks?.length || 0), 0)}
-                      </div>
-                      <div className="text-sm text-gray-600">Total Chunks</div>
-                    </div>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">
-                        {documents.filter(doc => doc.chunks && doc.chunks.length > 0).length}
-                      </div>
-                      <div className="text-sm text-gray-600">Processed Docs</div>
-                    </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">
-                        {new Set(documents.map(doc => doc.fileType)).size}
-                      </div>
-                      <div className="text-sm text-gray-600">File Types</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <h4 className="font-medium">Recent Documents</h4>
-                    {documents.slice(0, 5).map((doc) => (
-                      <div key={doc.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <FileText className="h-5 w-5 text-gray-400" />
-                          <div>
-                            <div className="font-medium">{doc.fileName}</div>
-                            <div className="text-sm text-gray-600">
-                              {formatFileSize(doc.size)} • {doc.chunks?.length || 0} chunks
-                            </div>
-                          </div>
-                        </div>
-                        <Badge variant="outline">
-                          {doc.fileType}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <div className="text-2xl font-bold">${currentCosts.total.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">
+                {costAlerts.length > 0 ? `${costAlerts.length} alerts` : 'Within budget'}
+              </p>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Documents</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{usageMetrics.documentsProcessed}</div>
+              <p className="text-xs text-muted-foreground">
+                {usageMetrics.storageUsed.toFixed(2)} GB used
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Queries</CardTitle>
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{usageMetrics.queriesExecuted}</div>
+              <p className="text-xs text-muted-foreground">
+                This month
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Workspaces</CardTitle>
+              <Building className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{tenantMemberships.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Active memberships
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <Tabs defaultValue="chat" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="chat">AI Chat</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+          {isEnterpriseTenant && <TabsTrigger value="enhanced-rag">Enhanced RAG</TabsTrigger>}
+          {isEnterpriseTenant && <TabsTrigger value="analytics">Analytics</TabsTrigger>}
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="chat" className="space-y-6">
+          <RAGChatInterface projectId={activeProject} />
         </TabsContent>
 
-        <TabsContent value="upload">
+        <TabsContent value="documents" className="space-y-6">
+          <DocumentManager projectId={activeProject} />
+        </TabsContent>
+
+        {isEnterpriseTenant && (
+          <TabsContent value="enhanced-rag" className="space-y-6">
+            <EnhancedRAGInterface projectId={activeProject} />
+          </TabsContent>
+        )}
+
+        {isEnterpriseTenant && (
+          <TabsContent value="analytics" className="space-y-6">
+            <CostTrackingDashboard />
+          </TabsContent>
+        )}
+
+        <TabsContent value="settings" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <LocalDocumentUpload projectId={currentProjectId} />
-            <AdvancedDocumentProcessor 
-              onDocumentProcessed={(doc) => {
-                console.log('Document processed:', doc);
-              }}
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle>Project Settings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Active Project</label>
+                  <p className="text-sm text-gray-600">{activeProject}</p>
+                </div>
+                {currentTenant && (
+                  <div>
+                    <label className="text-sm font-medium">Workspace</label>
+                    <p className="text-sm text-gray-600">{currentTenant.name}</p>
+                  </div>
+                )}
+                <div>
+                  <label className="text-sm font-medium">Subscription</label>
+                  <p className="text-sm">
+                    <Badge variant={
+                      currentTenant?.subscription_plan === 'enterprise' ? 'destructive' :
+                      currentTenant?.subscription_plan === 'pro' ? 'default' : 'secondary'
+                    }>
+                      {currentTenant?.subscription_plan || 'Free'}
+                    </Badge>
+                  </p>
+                </div>
+                {isEnterpriseTenant && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => window.location.href = '/workflows'}
+                    className="w-full"
+                  >
+                    <Workflow className="h-4 w-4 mr-2" />
+                    Manage Workflows
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Email</label>
+                  <p className="text-sm text-gray-600">{user?.email}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">User ID</label>
+                  <p className="text-sm text-gray-600 font-mono">
+                    {user?.id?.substring(0, 8)}...
+                  </p>
+                </div>
+                {currentTenant && hasPermission('tenant', 'read') && (
+                  <div>
+                    <label className="text-sm font-medium">Permissions</label>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {tenantMemberships
+                        .find(m => m.tenant_id === currentTenant.id)
+                        ?.permissions.slice(0, 3)
+                        .map((perm, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {perm === '*' ? 'All' : perm}
+                          </Badge>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
-
-        <TabsContent value="chat">
-          <RAGChatInterface projectId={currentProjectId} />
-        </TabsContent>
-
-        <TabsContent value="advanced-rag">
-          <EnhancedRAGInterface projectId={currentProjectId} />
-        </TabsContent>
-
-        <TabsContent value="costs">
-          <CostTrackingDashboard />
-        </TabsContent>
-
-        <TabsContent value="tenant">
-          <MultiTenantSetup />
-        </TabsContent>
       </Tabs>
-    </div>
-  );
-};
 
-const Dashboard: React.FC = () => {
-  return (
-    <TenantProvider>
-      <DashboardContent />
-    </TenantProvider>
+      {/* Project Creation Wizard Modal */}
+      {showProjectWizard && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+            <ProjectCreationWizard 
+              onComplete={() => {
+                setShowProjectWizard(false);
+                window.location.reload();
+              }}
+              onCancel={() => setShowProjectWizard(false)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
