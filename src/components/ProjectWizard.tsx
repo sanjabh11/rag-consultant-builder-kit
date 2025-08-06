@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,24 +9,33 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { 
-  ChevronRight, 
-  ChevronLeft, 
-  Upload, 
-  Shield, 
-  Brain, 
-  DollarSign,
-  CheckCircle,
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  ChevronRight,
+  ChevronLeft,
   FileText,
   Users,
+  Database,
+  Cpu,
+  ShieldCheck,
+  DollarSign,
+  Settings,
+  Cloud,
+  BrainCircuit,
+  CheckCircle,
+  Server,
+  Shield,
   Building,
   Zap,
-  Database
+  Brain,
+  Upload,
 } from 'lucide-react';
 import { useCostEstimation } from '@/hooks/useCostEstimation';
+import { WorkflowTemplateGallery } from './WorkflowTemplateGallery';
 import CostBreakdown from '@/components/CostBreakdown';
 
 interface ProjectSpec {
+  workflowTemplate: string | null;
   projectName: string;
   vertical: string;
   subdomain: string;
@@ -36,47 +45,50 @@ interface ProjectSpec {
   throughput: number;
   sla: string;
   complianceFlags: string[];
-  llmProvider: string;
+  llmProvider: 'llama3' | 'openai' | 'gemini' | 'claude' | 'gpt4';
   budget: number;
-  deploymentType: string;
-  // New cost-related fields
-  gpuProvider: string;
+  deploymentType: 'cloud' | 'self_hosted';
+  gpuProvider: 'none' | 'nvidia' | 'amd';
   gpuCount: number;
   gpuHoursPerDay: number;
-  vectorStore: string;
+  vectorStore: 'chroma' | 'pgvector' | 'pinecone';
   tokenBudget: number;
   storageGb: number;
   supabasePlan: 'free' | 'pro';
-  n8nMode: 'self_hosted' | 'cloud_free';
+  temporalMode: 'n8n' | 'none';
+  n8nUrl: string;
   useK8s: boolean;
 }
 
+const defaultSpec: ProjectSpec = {
+  workflowTemplate: null,
+  projectName: '',
+  vertical: '',
+  subdomain: '',
+  description: '',
+  dataSources: [],
+  expectedUsers: 50,
+  throughput: 100,
+  sla: '99.9',
+  complianceFlags: [],
+  llmProvider: 'llama3',
+  budget: 1000,
+  deploymentType: 'cloud',
+  gpuProvider: 'none',
+  gpuCount: 0,
+  gpuHoursPerDay: 24,
+  vectorStore: 'chroma',
+  tokenBudget: 100000,
+  storageGb: 50,
+  supabasePlan: 'free',
+  temporalMode: 'none',
+  n8nUrl: '',
+  useK8s: false,
+};
+
 const ProjectWizard = () => {
   const [currentStep, setCurrentStep] = useState(1);
-  const [spec, setSpec] = useState<ProjectSpec>({
-    projectName: '',
-    vertical: '',
-    subdomain: '',
-    description: '',
-    dataSources: [],
-    expectedUsers: 50,
-    throughput: 100,
-    sla: '99.9',
-    complianceFlags: [],
-    llmProvider: 'llama3',
-    budget: 1000,
-    deploymentType: 'cloud',
-    // New defaults
-    gpuProvider: 'none',
-    gpuCount: 0,
-    gpuHoursPerDay: 24,
-    vectorStore: 'chroma',
-    tokenBudget: 100000,
-    storageGb: 50,
-    supabasePlan: 'free',
-    n8nMode: 'cloud_free',
-    useK8s: false,
-  });
+  const [spec, setSpec] = useState<ProjectSpec>(defaultSpec);
 
   const totalSteps = 7; // Added a cost optimization step
   const progressPercentage = (currentStep / totalSteps) * 100;
@@ -92,7 +104,7 @@ const ProjectWizard = () => {
     supabase_plan: spec.supabasePlan,
     storage_gb: spec.storageGb,
     bandwidth_gb: 10, // Default estimate
-    n8n_mode: spec.n8nMode,
+    temporal_mode: spec.temporalMode,
     use_k8s: spec.useK8s,
   }), [spec]);
 
@@ -107,7 +119,14 @@ const ProjectWizard = () => {
     { value: 'customer-support', label: 'Customer Support', icon: <Users className="h-4 w-4" /> }
   ];
 
-  const llmProviders = [
+  interface LlmProviderOption {
+    value: 'llama3' | 'openai' | 'gemini' | 'claude' | 'gpt4';
+    label: string;
+    cost: string;
+    icon: React.ReactNode;
+  }
+
+  const llmProviders: readonly LlmProviderOption[] = [
     { value: 'llama3', label: 'LLaMA 3 70B (Private)', cost: 'GPU hosting required', icon: <Brain className="h-4 w-4" /> },
     { value: 'gemini', label: 'Gemini 2.5 Pro', cost: '$0.00008/1K tokens', icon: <Zap className="h-4 w-4" /> },
     { value: 'claude', label: 'Claude Sonnet', cost: '$0.0025/1K tokens', icon: <Brain className="h-4 w-4" /> },
@@ -235,7 +254,9 @@ const ProjectWizard = () => {
                 <div className="mt-2">
                   <Slider
                     value={[spec.storageGb]}
-                    onValueChange={([value]) => setSpec(prev => ({ ...prev, storageGb: value }))}
+                    onValueChange={([value]) => {
+                      setSpec((prev) => ({ ...prev, storageGb: value }));
+                    }}
                     max={1000}
                     min={1}
                     step={5}
@@ -439,7 +460,7 @@ const ProjectWizard = () => {
                 <CardContent className="space-y-4">
                   <div>
                     <Label>GPU Type</Label>
-                    <Select value={spec.gpuProvider} onValueChange={(value) => setSpec(prev => ({ ...prev, gpuProvider: value }))}>
+                    <Select value={spec.gpuProvider} onValueChange={(value) => setSpec(prev => ({ ...prev, gpuProvider: value as typeof prev.gpuProvider }))}>
                       <SelectTrigger className="mt-1">
                         <SelectValue />
                       </SelectTrigger>
@@ -495,7 +516,7 @@ const ProjectWizard = () => {
                 </CardHeader>
                 <CardContent>
                   <Label>Vector Store</Label>
-                  <Select value={spec.vectorStore} onValueChange={(value) => setSpec(prev => ({ ...prev, vectorStore: value }))}>
+                  <Select value={spec.vectorStore} onValueChange={(value) => setSpec(prev => ({ ...prev, vectorStore: value as typeof prev.vectorStore }))}>
                     <SelectTrigger className="mt-1">
                       <SelectValue />
                     </SelectTrigger>
@@ -545,15 +566,41 @@ const ProjectWizard = () => {
 
                 <div>
                   <Label>Workflow Platform</Label>
-                  <Select value={spec.n8nMode} onValueChange={(value: 'self_hosted' | 'cloud_free') => setSpec(prev => ({ ...prev, n8nMode: value }))}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cloud_free">n8n Cloud Free (100 runs/month)</SelectItem>
-                      <SelectItem value="self_hosted">n8n Self-hosted (+$10/month)</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <RadioGroup
+                    value={spec.temporalMode}
+                    onValueChange={(value) => setSpec(prev => ({ ...prev, temporalMode: value as 'n8n' | 'none' }))}
+                    className="mt-2"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="none" id="wf-none" />
+                      <Label htmlFor="wf-none">None</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="n8n" id="wf-n8n" />
+                      <Label htmlFor="wf-n8n">n8n Cloud</Label>
+                    </div>
+                  </RadioGroup>
+                  {spec.temporalMode === 'n8n' && 
+                  <>
+                    <div className="mt-4">
+                      <Label htmlFor="n8nUrl">n8n Instance URL</Label>
+                      <Input
+                        id="n8nUrl"
+                        value={spec.n8nUrl}
+                        onChange={(e) => setSpec(prev => ({ ...prev, n8nUrl: e.target.value }))}
+                        placeholder="https://your-n8n-instance.com"
+                      />
+                    </div>
+                    <div className="mt-4">
+                      <Label>Select a Workflow Template</Label>
+                      <WorkflowTemplateGallery 
+                        selectedTemplate={spec.workflowTemplate}
+                        onSelectTemplate={(templateId) => setSpec(prev => ({ ...prev, workflowTemplate: templateId }))}
+                        n8nUrl={spec.n8nUrl}
+                      />
+                    </div>
+                  </>
+                }
                 </div>
               </CardContent>
             </Card>

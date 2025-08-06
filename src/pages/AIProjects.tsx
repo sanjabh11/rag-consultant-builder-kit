@@ -1,11 +1,10 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAIProjects } from "@/hooks/useAIProjects";
 import { PlusCircle } from "lucide-react";
 import ProjectCreationWizard from "@/components/ProjectCreationWizard";
 import { useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 const AIProjects = () => {
   const { data: projects, isLoading, error } = useAIProjects();
@@ -53,6 +52,12 @@ const AIProjects = () => {
 
       <Dialog open={isWizardOpen} onOpenChange={setIsWizardOpen}>
         <DialogContent className="max-w-5xl w-full p-0">
+  <DialogHeader>
+    <DialogTitle>Create New Project</DialogTitle>
+    <DialogDescription>
+      Fill out the form to create a new project.
+    </DialogDescription>
+  </DialogHeader>
           <ProjectCreationWizard
             onComplete={handleWizardComplete}
             onCancel={() => setIsWizardOpen(false)}

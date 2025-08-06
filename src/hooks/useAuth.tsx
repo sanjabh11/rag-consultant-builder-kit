@@ -12,6 +12,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
+  signInAsGuest: () => Promise<{ error: AuthError | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -132,7 +133,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
-  const value = {
+  const signInAsGuest = async () => {
+  try {
+    // @ts-ignore – signInAnonymously is available in supabase-js v2.42+
+    const { error } = await (supabase.auth as any).signInAnonymously();
+    if (error) {
+      toast({
+        title: "Guest Login Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Guest Session Started",
+        description: "You are browsing as a guest.",
+      });
+    }
+    return { error };
+  } catch (err: any) {
+    toast({
+      title: "Guest Login Error",
+      description: err.message || 'Unable to start guest session',
+      variant: "destructive",
+    });
+    return { error: err };
+  }
+};
+
+const value = {
     user,
     session,
     loading,
@@ -140,6 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signOut,
     resetPassword,
+    signInAsGuest,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

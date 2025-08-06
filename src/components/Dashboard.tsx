@@ -27,26 +27,49 @@ import {
   Code,
   Users
 } from 'lucide-react';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { useTenant } from '@/hooks/useTenantContext';
+
+import TeamManagement from '@/components/TeamManagement';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { currentTenant, tenantMemberships, hasPermission } = useEnterpriseAuth();
+  // Use useTenant for multi-tenant context
+  const { tenants, currentTenant, switchTenant } = useTenant();
+  const { tenantMemberships, hasPermission } = useEnterpriseAuth();
   const { currentCosts, usageMetrics, costAlerts } = useCostTracking();
   const [activeProject, setActiveProject] = useState('default');
   const [showProjectWizard, setShowProjectWizard] = useState(false);
+  const [showTeamModal, setShowTeamModal] = useState(false);
 
   // Show project creation wizard if no tenant
   if (!currentTenant && user) {
-    return <ProjectCreationWizard onComplete={() => window.location.reload()} />;
+    return <ProjectCreationWizard tenantId={currentTenant?.id || ''} onCancel={() => {}} onComplete={() => window.location.reload()} />;
   }
 
-  const isEnterpriseTenant = currentTenant?.subscription_plan === 'enterprise';
+  const isEnterpriseTenant = currentTenant?.subscription?.plan === 'enterprise';
 
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-4">
+          {/* Tenant Switcher */}
+          {tenants && tenants.length > 1 && (
+            <Select value={currentTenant?.id} onValueChange={switchTenant}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Switch Workspace" />
+              </SelectTrigger>
+              <SelectContent>
+                {tenants.map((tenant) => (
+                  <SelectItem key={tenant.id} value={tenant.id}>
+                    <Building className="h-4 w-4 mr-2 inline" />
+                    {tenant.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <h1 className="text-3xl font-bold flex items-center gap-2">
             {isEnterpriseTenant && <Crown className="h-8 w-8 text-yellow-500" />}
             AI Platform Dashboard
@@ -56,10 +79,10 @@ const Dashboard = () => {
               <Building className="h-4 w-4" />
               {currentTenant.name}
               <Badge variant={
-                currentTenant.subscription_plan === 'enterprise' ? 'destructive' :
-                currentTenant.subscription_plan === 'pro' ? 'default' : 'secondary'
+                currentTenant.subscription.plan === 'enterprise' ? 'destructive' :
+                currentTenant.subscription.plan === 'pro' ? 'default' : 'secondary'
               }>
-                {currentTenant.subscription_plan}
+                {currentTenant.subscription.plan}
               </Badge>
             </p>
           )}
@@ -73,6 +96,16 @@ const Dashboard = () => {
             >
               <Crown className="h-4 w-4 mr-2" />
               Enterprise Console
+            </Button>
+          )}
+          {/* Manage Team button for admins */}
+          {currentTenant && currentTenant.subscription && (
+            <Button
+              variant="outline"
+              onClick={() => setShowTeamModal(true)}
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Manage Team
             </Button>
           )}
           <Button onClick={() => setShowProjectWizard(true)}>
@@ -200,10 +233,10 @@ const Dashboard = () => {
                   <label className="text-sm font-medium">Subscription</label>
                   <p className="text-sm">
                     <Badge variant={
-                      currentTenant?.subscription_plan === 'enterprise' ? 'destructive' :
-                      currentTenant?.subscription_plan === 'pro' ? 'default' : 'secondary'
+                      currentTenant?.subscription?.plan === 'enterprise' ? 'destructive' :
+                      currentTenant?.subscription?.plan === 'pro' ? 'default' : 'secondary'
                     }>
-                      {currentTenant?.subscription_plan || 'Free'}
+                      {currentTenant?.subscription?.plan || 'Free'}
                     </Badge>
                   </p>
                 </div>
@@ -261,12 +294,24 @@ const Dashboard = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
             <ProjectCreationWizard 
+              tenantId={currentTenant?.id || ''}
               onComplete={() => {
                 setShowProjectWizard(false);
                 window.location.reload();
               }}
               onCancel={() => setShowProjectWizard(false)}
             />
+          </div>
+        </div>
+      )}
+      {/* Team Management Modal */}
+      {showTeamModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
+            <TeamManagement projectId={currentTenant?.id || ''} />
+            <div className="flex justify-end mt-4">
+              <Button onClick={() => setShowTeamModal(false)}>Close</Button>
+            </div>
           </div>
         </div>
       )}

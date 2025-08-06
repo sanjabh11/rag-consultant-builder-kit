@@ -12,6 +12,8 @@ interface AuthModalProps {
   onClose: () => void;
 }
 
+import { useAuth } from '@/hooks/useAuth';
+
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
@@ -95,6 +97,19 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           >
             {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
           </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={async () => {
+            setLoading(true);
+            await signInAsGuest();
+            setLoading(false);
+            onClose();
+          }}
+        >
+          Continue as Guest
+        </Button>
         </form>
       </DialogContent>
     </Dialog>

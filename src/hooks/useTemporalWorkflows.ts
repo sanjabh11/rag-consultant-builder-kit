@@ -233,84 +233,8 @@ export const useTemporalWorkflows = () => {
     }
   };
 
-  // Built-in workflow templates
-  const getWorkflowTemplates = () => [
-    {
-      name: 'Document Processing Pipeline',
-      description: 'Automatically process uploaded documents through RAG pipeline',
-      definition: {
-        triggers: [{
-          id: 'doc-upload',
-          type: 'document_upload' as const,
-          config: { file_types: ['pdf', 'docx', 'txt'] }
-        }],
-        actions: [{
-          id: 'process-doc',
-          type: 'process_document' as const,
-          config: { 
-            chunk_size: 1000,
-            chunk_overlap: 200,
-            generate_embeddings: true
-          },
-          retry_policy: { max_attempts: 3, backoff_coefficient: 2 }
-        }]
-      }
-    },
-    {
-      name: 'Daily Analytics Report',
-      description: 'Generate and send daily analytics reports',
-      definition: {
-        triggers: [{
-          id: 'daily-schedule',
-          type: 'schedule' as const,
-          config: { cron: '0 9 * * *' } // 9 AM daily
-        }],
-        actions: [
-          {
-            id: 'generate-report',
-            type: 'generate_report' as const,
-            config: { report_type: 'analytics', format: 'pdf' }
-          },
-          {
-            id: 'send-email',
-            type: 'send_email' as const,
-            config: { 
-              recipients: ['admin@company.com'],
-              subject: 'Daily Analytics Report'
-            }
-          }
-        ]
-      }
-    },
-    {
-      name: 'Smart Q&A Pipeline',
-      description: 'Automated RAG queries with quality scoring',
-      definition: {
-        triggers: [{
-          id: 'webhook-trigger',
-          type: 'webhook' as const,
-          config: { endpoint: '/api/query' }
-        }],
-        actions: [
-          {
-            id: 'rag-query',
-            type: 'rag_query' as const,
-            config: { 
-              max_sources: 5,
-              confidence_threshold: 0.7,
-              rerank: true
-            }
-          }
-        ],
-        conditions: [{
-          id: 'quality-filter',
-          type: 'filter' as const,
-          expression: 'confidence > 0.8',
-          config: {}
-        }]
-      }
-    }
-  ];
+  // No built-in workflow templates; use n8n or Supabase workflows only
+  const getWorkflowTemplates = () => [];
 
   return {
     workflows,

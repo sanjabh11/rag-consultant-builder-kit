@@ -1,6 +1,6 @@
 
 -- Create document_chunks table for storing processed document chunks
-CREATE TABLE public.document_chunks (
+CREATE TABLE IF NOT EXISTS public.document_chunks (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   document_id UUID REFERENCES public.documents(id) ON DELETE CASCADE,
   project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
@@ -33,10 +33,12 @@ CREATE POLICY "System can manage document chunks"
   WITH CHECK (true);
 
 -- Add index for better performance
-CREATE INDEX idx_document_chunks_document_id ON public.document_chunks(document_id);
-CREATE INDEX idx_document_chunks_project_id ON public.document_chunks(project_id);
+CREATE INDEX IF NOT EXISTS idx_document_chunks_document_id ON public.document_chunks(document_id);
+CREATE INDEX IF NOT EXISTS idx_document_chunks_project_id ON public.document_chunks(project_id);
 
 -- Add updated_at trigger
+-- Drop trigger if already exists then recreate
+DROP TRIGGER IF EXISTS update_document_chunks_updated_at ON public.document_chunks;
 CREATE TRIGGER update_document_chunks_updated_at 
   BEFORE UPDATE ON public.document_chunks 
   FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();

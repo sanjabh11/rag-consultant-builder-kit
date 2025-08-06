@@ -2,7 +2,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY'); // Use Gemini if available by changing logic
+const embeddingEndpoint = Deno.env.get('EMBEDDING_ENDPOINT') || ''; // Optional private embedding service (e.g., LLaMA)
+const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -27,7 +28,26 @@ function chunkText(text: string, maxTokens = 300): string[] {
 }
 
 async function getEmbeddings(texts: string[]): Promise<number[][]> {
-  // Use OpenAI embedding endpoint for demo (use Gemini via Vertex AI if needed)
+  // If a private embedding endpoint is provided, use it first
+  if (embeddingEndpoint) {
+    const res = await fetch(`${embeddingEndpoint}/v1/embeddings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ input: texts })
+    });
+    if (!res.ok) throw new Error(`Embedding request failed: ${res.status} ${res.statusText}`);
+    const data = await res.json();
+    // Accept either {embeddings: number[][]} or OpenAI style {data:[{embedding:[]},...]}
+    if (Array.isArray(data.embeddings)) {
+      return data.embeddings;
+    }
+    if (Array.isArray(data.data)) {
+      return data.data.map((d: any) => d.embedding);
+    }
+    throw new Error('Unexpected embedding response format');
+  }
+
+  // Fallback to OpenAI embeddings
   const res = await fetch('https://api.openai.com/v1/embeddings', {
     method: 'POST',
     headers: {

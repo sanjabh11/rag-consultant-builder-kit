@@ -77,7 +77,7 @@ const CostBreakdown: React.FC<CostBreakdownProps> = ({
     { label: 'LLM Tokens', value: breakdown.llm_cost, tooltip: 'Cost per token for external LLM providers' },
     { label: 'Infrastructure', value: breakdown.infrastructure_cost, tooltip: 'Supabase, VMs, and K8s control plane' },
     { label: 'Storage', value: breakdown.storage_cost, tooltip: 'Document storage (S3/GCS)' },
-    { label: 'Workflows', value: breakdown.workflow_cost, tooltip: 'n8n automation platform costs' },
+    { label: 'Workflows', value: breakdown.workflow_cost, tooltip: 'Temporal.io orchestration costs' },
     { label: 'Bandwidth', value: breakdown.bandwidth_cost, tooltip: 'Data transfer and egress costs' },
   ];
 

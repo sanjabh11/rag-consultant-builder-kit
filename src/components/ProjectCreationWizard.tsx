@@ -12,6 +12,7 @@ import { useCostEstimation } from '@/hooks/useCostEstimation';
 import { Brain, FileText, Shield, DollarSign, Zap, Database } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import CostBreakdown from '@/components/CostBreakdown';
+import { fetchN8nWorkflows, deployN8nWorkflow } from '@/services/n8nService';
 
 const DOMAINS = [
   { value: 'hr', label: 'Human Resources', description: 'Employee policies, benefits, compliance' },
@@ -44,9 +45,10 @@ const VECTOR_STORES = [
 interface ProjectCreationWizardProps {
   onComplete: (projectId: string) => void;
   onCancel: () => void;
+  tenantId: string;
 }
 
-const ProjectCreationWizard: React.FC<ProjectCreationWizardProps> = ({ onComplete, onCancel }) => {
+const ProjectCreationWizard: React.FC<ProjectCreationWizardProps> = ({ onComplete, onCancel, tenantId }) => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
@@ -61,8 +63,10 @@ const ProjectCreationWizard: React.FC<ProjectCreationWizardProps> = ({ onComplet
     vector_store: 'chroma',
     storage_gb: 50,
     supabase_plan: 'free' as 'free' | 'pro',
-    n8n_mode: 'cloud_free' as 'self_hosted' | 'cloud_free',
+    temporal_mode: 'cloud' as 'self_hosted' | 'cloud',
     use_k8s: false,
+    n8nUrl: '', // For n8n integration
+    workflowTemplate: '', // For n8n workflow selection
   });
 
   const { data: llmProviders } = useLLMProviders();
@@ -80,7 +84,6 @@ const ProjectCreationWizard: React.FC<ProjectCreationWizardProps> = ({ onComplet
     supabase_plan: formData.supabase_plan,
     storage_gb: formData.storage_gb,
     bandwidth_gb: 10, // Default estimate
-    n8n_mode: formData.n8n_mode,
     use_k8s: formData.use_k8s,
   }), [formData]);
 
@@ -95,8 +98,17 @@ const ProjectCreationWizard: React.FC<ProjectCreationWizardProps> = ({ onComplet
   };
 
   const handleSubmit = async () => {
+    if (!tenantId) {
+      toast({
+        title: 'Error',
+        description: 'No tenant selected. Cannot create project.',
+        variant: 'destructive',
+      });
+      return;
+    }
     try {
-      const project = await createProject.mutateAsync({
+      // Compose project payload, including tenantId if required by backend
+      const payload: any = {
         ...formData,
         status: 'draft',
         config: {
@@ -108,11 +120,44 @@ const ProjectCreationWizard: React.FC<ProjectCreationWizardProps> = ({ onComplet
             vector_store: formData.vector_store,
             storage_gb: formData.storage_gb,
             supabase_plan: formData.supabase_plan,
-            n8n_mode: formData.n8n_mode,
+            temporal_mode: formData.temporal_mode,
             use_k8s: formData.use_k8s,
           }
-        },
-      });
+        }
+      };
+      // Attach tenant_id if backend expects it
+      if ('tenant_id' in createProject.mutateAsync || true) {
+        payload.tenant_id = tenantId;
+      }
+      const project = await createProject.mutateAsync(payload);
+      // n8n workflow deployment if n8n mode is selected
+      if (formData.temporal_mode === 'cloud' && formData.n8nUrl && formData.workflowTemplate) {
+        try {
+          // Fetch the selected workflow from the user's n8n instance
+          const workflows = await fetchN8nWorkflows(formData.n8nUrl);
+          const selected = workflows.find(w => w.id === formData.workflowTemplate);
+          if (selected) {
+            await deployN8nWorkflow(formData.n8nUrl, selected);
+            toast({
+              title: 'n8n Workflow Deployed',
+              description: `Workflow '${selected.name}' deployed to your n8n instance.`,
+              variant: 'default',
+            });
+          } else {
+            toast({
+              title: 'Workflow Not Found',
+              description: 'Selected workflow template could not be found in your n8n instance.',
+              variant: 'destructive',
+            });
+          }
+        } catch (err) {
+          toast({
+            title: 'n8n Deployment Failed',
+            description: 'Could not deploy workflow to n8n. Please check your n8n URL and credentials.',
+            variant: 'destructive',
+          });
+        }
+      }
       toast({
         title: "Project Created",
         description: `Your AI project has been created with estimated monthly cost of $${costBreakdown?.total || 0}.`,

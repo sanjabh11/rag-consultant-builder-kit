@@ -18,8 +18,13 @@ export interface PricingData {
     k8s_control_plane: number;
   };
   workflow: {
-    n8n_self_hosted: number;
-    n8n_cloud_free: number;
+    temporal_self_hosted: number;
+    temporal_cloud: number;
+    /**
+     * @deprecated n8n_* keys kept for backward compatibility during transition to Temporal.io.
+     */
+    n8n_self_hosted?: number;
+    n8n_cloud_free?: number;
   };
 }
 
@@ -49,6 +54,9 @@ export const PRICING_DATA: PricingData = {
     k8s_control_plane: 100.00,
   },
   workflow: {
+    temporal_self_hosted: 15.00, // Approx small Temporal cluster (3 worker pods, Postgres)
+    temporal_cloud: 0.00,        // Temporal Cloud free tier (10K task executions/mo)
+    // Legacy keys (will be removed in v2)
     n8n_self_hosted: 10.00,
     n8n_cloud_free: 0.00,
   },
@@ -84,8 +92,8 @@ export interface CostEstimationInputs {
   bandwidth_gb?: number;
   use_k8s?: boolean;
   
-  // Workflow
-  n8n_mode?: 'self_hosted' | 'cloud_free';
+  // Workflow Engine
+  workflowMode?: 'n8n' | 'none';
 }
 
 export class CostEstimator {
@@ -131,8 +139,15 @@ export class CostEstimator {
     return storageGb * this.pricing.infrastructure.storage_per_gb;
   }
 
-  estimateWorkflowCost(n8nMode: 'self_hosted' | 'cloud_free' = 'cloud_free'): number {
-    return this.pricing.workflow[n8nMode] || 0;
+  /**
+   * Estimate the cost of the workflow engine.
+   */
+  estimateWorkflowCost(mode: 'n8n' | 'none' = 'none'): number {
+    if (mode === 'n8n') {
+      // Assuming self-hosted n8n cost for now. Cloud would be different.
+      return this.pricing.workflow.n8n_self_hosted || 0;
+    }
+    return 0;
   }
 
   estimateBandwidthCost(bandwidthGb: number = 10): number {
@@ -160,7 +175,7 @@ export class CostEstimator {
     
     const storageCost = this.estimateStorageCost(inputs.storage_gb);
     
-    const workflowCost = this.estimateWorkflowCost(inputs.n8n_mode);
+    const workflowCost = this.estimateWorkflowCost(inputs.workflowMode);
     
     const bandwidthCost = this.estimateBandwidthCost(inputs.bandwidth_gb);
     
