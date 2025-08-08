@@ -43,6 +43,7 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.1.7",
     "input-otp": "^1.2.5",
+    "lovable-tagger": "^1.1.9",
     "lucide-react": "^0.416.0",
     "n8n": "^1.18.0",
     "next-themes": "^0.3.0",
