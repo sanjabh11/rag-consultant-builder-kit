@@ -1,59 +1,40 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { Loader2 } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultMode?: 'signin' | 'signup';
 }
 
-import { useAuth } from '@/hooks/useAuth';
-
-const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const [isSignUp, setIsSignUp] = useState(false);
+const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, defaultMode = 'signin' }) => {
+  const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>(defaultMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
+  const { signIn, signUp, resetPassword } = useAuth();
 
-  const handleAuth = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        
-        toast({
-          title: "Check your email",
-          description: "We've sent you a confirmation link.",
-        });
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
+      if (mode === 'signin') {
+        await signIn(email, password);
+      } else if (mode === 'signup') {
+        await signUp(email, password);
+      } else if (mode === 'reset') {
+        await resetPassword(email);
       }
-      
       onClose();
-      setEmail('');
-      setPassword('');
     } catch (error) {
-      toast({
-        title: "Authentication Error",
-        description: error instanceof Error ? error.message : "An error occurred",
-        variant: "destructive",
-      });
+      console.error('Auth error:', error);
     } finally {
       setLoading(false);
     }
@@ -61,12 +42,22 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isSignUp ? 'Sign Up' : 'Sign In'}</DialogTitle>
+          <DialogTitle>
+            {mode === 'signin' && 'Sign In'}
+            {mode === 'signup' && 'Sign Up'}
+            {mode === 'reset' && 'Reset Password'}
+          </DialogTitle>
+          <DialogDescription>
+            {mode === 'signin' && 'Welcome back! Please sign in to your account.'}
+            {mode === 'signup' && 'Create a new account to get started.'}
+            {mode === 'reset' && 'Enter your email to reset your password.'}
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleAuth} className="space-y-4">
-          <div className="space-y-2">
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
@@ -76,41 +67,68 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               required
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
+
+          {mode !== 'reset' && (
+            <div>
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+          )}
+
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {mode === 'signin' && 'Sign In'}
+            {mode === 'signup' && 'Sign Up'}
+            {mode === 'reset' && 'Send Reset Email'}
           </Button>
-          <Button 
-            type="button" 
-            variant="ghost" 
-            className="w-full"
-            onClick={() => setIsSignUp(!isSignUp)}
-          >
-            {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-          </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={async () => {
-            setLoading(true);
-            await signInAsGuest();
-            setLoading(false);
-            onClose();
-          }}
-        >
-          Continue as Guest
-        </Button>
         </form>
+
+        <div className="space-y-2 text-center">
+          {mode === 'signin' && (
+            <>
+              <Button
+                variant="link"
+                onClick={() => setMode('signup')}
+                className="text-sm"
+              >
+                Don't have an account? Sign up
+              </Button>
+              <Button
+                variant="link"
+                onClick={() => setMode('reset')}
+                className="text-sm"
+              >
+                Forgot password?
+              </Button>
+            </>
+          )}
+          
+          {mode === 'signup' && (
+            <Button
+              variant="link"
+              onClick={() => setMode('signin')}
+              className="text-sm"
+            >
+              Already have an account? Sign in
+            </Button>
+          )}
+          
+          {mode === 'reset' && (
+            <Button
+              variant="link"
+              onClick={() => setMode('signin')}
+              className="text-sm"
+            >
+              Back to sign in
+            </Button>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
