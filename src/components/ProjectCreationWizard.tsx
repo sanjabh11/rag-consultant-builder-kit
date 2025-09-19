@@ -1,80 +1,17 @@
-import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Slider } from '@/components/ui/slider';
-import { useCreateAIProject } from '@/hooks/useAIProjects';
-import { useLLMProviders } from '@/hooks/useLLMProviders';
-import { useCostEstimation } from '@/hooks/useCostEstimation';
-import { Brain, FileText, Shield, DollarSign, Zap, Database } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import CostBreakdown from '@/components/CostBreakdown';
-import { fetchN8nWorkflows, deployN8nWorkflow } from '@/services/n8nService';
-
-const DOMAINS = [
-  { value: 'hr', label: 'Human Resources', description: 'Employee policies, benefits, compliance' },
-  { value: 'finance', label: 'Finance', description: 'Financial reports, budgets, analysis' },
-  { value: 'legal', label: 'Legal', description: 'Contracts, compliance, legal research' },
-  { value: 'manufacturing', label: 'Manufacturing', description: 'Operations, quality, safety' },
-  { value: 'healthcare', label: 'Healthcare', description: 'Patient data, medical records' },
-  { value: 'sales', label: 'Sales', description: 'Customer data, sales reports' },
-];
-
-const COMPLIANCE_FLAGS = [
-  { id: 'hipaa', label: 'HIPAA', description: 'Healthcare data protection' },
-  { id: 'gdpr', label: 'GDPR', description: 'EU data protection regulation' },
-  { id: 'sox', label: 'SOX', description: 'Financial reporting compliance' },
-  { id: 'iso27001', label: 'ISO 27001', description: 'Information security management' },
-];
-
-const GPU_OPTIONS = [
-  { value: 'none', label: 'No GPU (API-only)' },
-  { value: 'a100', label: 'NVIDIA A100' },
-  { value: 'h100', label: 'NVIDIA H100' },
-];
-
-const VECTOR_STORES = [
-  { value: 'chroma', label: 'ChromaDB (Self-hosted)' },
-  { value: 'weaviate', label: 'Weaviate (Managed)' },
-  { value: 'qdrant', label: 'Qdrant (Managed)' },
-];
+import React from 'react';
+import AdvancedProjectCreationWizard from './AdvancedProjectCreationWizard';
 
 interface ProjectCreationWizardProps {
-  onComplete: (projectId: string) => void;
+  onComplete: (project: any) => void;
   onCancel: () => void;
-  tenantId: string;
+  tenantId?: string;
 }
 
-const ProjectCreationWizard: React.FC<ProjectCreationWizardProps> = ({ onComplete, onCancel, tenantId }) => {
-  const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
-    name: '',
-    domain: '',
-    subdomain: '',
-    compliance_flags: [] as string[],
-    llm_provider: 'llama3',
-    token_budget: 100000,
-    gpu_provider: 'none',
-    gpu_count: 0,
-    gpu_hours_per_day: 24,
-    vector_store: 'chroma',
-    storage_gb: 50,
-    supabase_plan: 'free' as 'free' | 'pro',
-    temporal_mode: 'cloud' as 'self_hosted' | 'cloud',
-    use_k8s: false,
-    n8nUrl: '', // For n8n integration
-    workflowTemplate: '', // For n8n workflow selection
-  });
+const ProjectCreationWizard: React.FC<ProjectCreationWizardProps> = ({ onComplete, onCancel }) => {
+  return <AdvancedProjectCreationWizard onComplete={onComplete} onCancel={onCancel} />;
+};
 
-  const { data: llmProviders } = useLLMProviders();
-  const createProject = useCreateAIProject();
-  const { toast } = useToast();
-
-  // Real-time cost estimation
-  const costInputs = useMemo(() => ({
+export default ProjectCreationWizard;
     gpu_provider: formData.gpu_provider,
     gpu_count: formData.gpu_count,
     gpu_hours_per_day: formData.gpu_hours_per_day,

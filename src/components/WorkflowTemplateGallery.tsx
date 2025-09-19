@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bot, FileText, PlusCircle } from 'lucide-react';
+import { Bot, FileText, PlusCircle, Briefcase, Scale, DollarSign } from 'lucide-react';
 import { fetchN8nWorkflows, N8nWorkflow } from '@/services/n8nService';
+import { realWorkflowService } from '@/services/workflow/RealWorkflowService';
 
 // Define the WorkflowTemplate interface
 export interface WorkflowTemplate {
@@ -9,10 +10,19 @@ export interface WorkflowTemplate {
   name: string;
   description: string;
   icon: React.ReactNode;
+  domain?: string;
 }
 
-// No fallback mock data; gallery relies on live fetch.
-const mockTemplates: WorkflowTemplate[] = [];
+// Real workflow templates loaded from service
+const getWorkflowIcon = (domain: string) => {
+  switch (domain) {
+    case 'hr': return <Bot className="h-8 w-8 text-blue-500" />;
+    case 'legal': return <Scale className="h-8 w-8 text-purple-500" />;
+    case 'finance': return <DollarSign className="h-8 w-8 text-green-500" />;
+    case 'general': return <FileText className="h-8 w-8 text-gray-500" />;
+    default: return <Briefcase className="h-8 w-8 text-orange-500" />;
+  }
+};
 
 interface WorkflowTemplateGalleryProps {
   onSelectTemplate: (templateId: string) => void;
@@ -22,36 +32,65 @@ interface WorkflowTemplateGalleryProps {
 }
 
 export const WorkflowTemplateGallery: React.FC<WorkflowTemplateGalleryProps> = ({ onSelectTemplate, selectedTemplate, n8nUrl, apiKey }) => {
-  const [templates, setTemplates] = useState<WorkflowTemplate[]>(mockTemplates);
-  const [loading, setLoading] = useState(false);
+  const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch real n8n workflows if n8nUrl is provided
+  // Load workflow templates from the real workflow service
   useEffect(() => {
-    if (!n8nUrl) {
-      setTemplates(mockTemplates);
+    const loadTemplates = async () => {
+      setLoading(true);
       setError(null);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    fetchN8nWorkflows(n8nUrl, apiKey)
-      .then((workflows) => {
-        // Map n8n workflows to WorkflowTemplate format
-        setTemplates(
-          workflows.map((w) => ({
-            id: w.id,
-            name: w.name,
-            description: w.active ? 'Active workflow' : 'Inactive workflow',
-            icon: <FileText className="h-8 w-8 text-gray-500" />,
-          }))
-        );
-      })
-      .catch(() => {
-        setTemplates(mockTemplates);
-        setError('Failed to fetch workflows from n8n. Showing mock templates.');
-      })
-      .finally(() => setLoading(false));
+      
+      try {
+        await realWorkflowService.initialize();
+        
+        // Try to get workflows from n8n first, then fall back to templates
+        if (n8nUrl) {
+          try {
+            const workflows = await fetchN8nWorkflows(n8nUrl, apiKey);
+            const mappedWorkflows = workflows.map((w) => ({
+              id: w.id,
+              name: w.name,
+              description: w.active ? 'Active workflow' : 'Inactive workflow',
+              icon: <FileText className="h-8 w-8 text-gray-500" />,
+              domain: 'general'
+            }));
+            setTemplates(mappedWorkflows);
+          } catch (n8nError) {
+            // Fall back to workflow templates
+            const workflowTemplates = await realWorkflowService.getWorkflowTemplates();
+            const mappedTemplates = workflowTemplates.map((template) => ({
+              id: template.id,
+              name: template.name,
+              description: template.description,
+              icon: getWorkflowIcon(template.domain),
+              domain: template.domain
+            }));
+            setTemplates(mappedTemplates);
+            setError('Using built-in workflow templates (n8n connection failed)');
+          }
+        } else {
+          // Use workflow templates when no n8n URL provided
+          const workflowTemplates = await realWorkflowService.getWorkflowTemplates();
+          const mappedTemplates = workflowTemplates.map((template) => ({
+            id: template.id,
+            name: template.name,
+            description: template.description,
+            icon: getWorkflowIcon(template.domain),
+            domain: template.domain
+          }));
+          setTemplates(mappedTemplates);
+        }
+      } catch (error) {
+        console.error('Failed to load workflow templates:', error);
+        setError('Failed to load workflow templates');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTemplates();
   }, [n8nUrl, apiKey]);
 
   return (

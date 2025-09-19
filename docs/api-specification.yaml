@@ -1,0 +1,787 @@
+openapi: 3.0.3
+info:
+  title: RAG Consultant Builder Kit API
+  description: |
+    Comprehensive API for the RAG Consultant Builder Kit - a white-labeled, no-code AI consultant platform.
+    
+    This API provides endpoints for:
+    - Project management and configuration
+    - Document processing and RAG operations
+    - Workflow automation and management
+    - Analytics and monitoring
+    - Multi-tenant operations
+    
+    ## Authentication
+    All endpoints require authentication via Bearer token in the Authorization header.
+    
+    ## Rate Limiting
+    API requests are limited to 1000 requests per hour per user.
+    
+    ## Error Handling
+    All endpoints return standard HTTP status codes with detailed error messages in JSON format.
+    
+  version: 1.0.0
+  contact:
+    name: RAG Consultant Builder Kit Support
+    email: support@rag-consultant.ai
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.rag-consultant.ai/v1
+    description: Production server
+  - url: http://localhost:8000/api/v1
+    description: Local development server
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Project:
+      type: object
+      required:
+        - id
+        - name
+        - domain
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique project identifier
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Project name
+        description:
+          type: string
+          maxLength: 500
+          description: Project description
+        domain:
+          type: string
+          enum: [legal, hr, finance, healthcare, manufacturing, technology, general]
+          description: Project domain/vertical
+        subdomain:
+          type: string
+          maxLength: 100
+          description: Specific subdomain within the main domain
+        status:
+          type: string
+          enum: [draft, generating, deployed, failed]
+          description: Current project status
+        config:
+          type: object
+          description: Project configuration settings
+          properties:
+            vectorStore:
+              type: string
+              enum: [local, chroma, weaviate, qdrant]
+            embeddingModel:
+              type: string
+            llmProvider:
+              type: string
+            workflows:
+              type: array
+              items:
+                type: string
+        compliance_flags:
+          type: array
+          items:
+            type: string
+            enum: [hipaa, gdpr, sox, pci, iso27001]
+          description: Compliance requirements
+        token_budget:
+          type: integer
+          minimum: 1000
+          maximum: 10000000
+          description: Monthly token budget
+        user_id:
+          type: string
+          format: uuid
+        tenant_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Document:
+      type: object
+      required:
+        - id
+        - project_id
+        - name
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        content_type:
+          type: string
+          description: MIME type of the document
+        size:
+          type: integer
+          minimum: 0
+          description: File size in bytes
+        status:
+          type: string
+          enum: [uploading, processing, completed, failed]
+        metadata:
+          type: object
+          description: Additional document metadata
+        processing_stats:
+          type: object
+          properties:
+            chunks_created:
+              type: integer
+            embeddings_generated:
+              type: integer
+            processing_time_ms:
+              type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    RAGQuery:
+      type: object
+      required:
+        - query
+        - project_id
+      properties:
+        query:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: The question or query text
+        project_id:
+          type: string
+          format: uuid
+        collection_id:
+          type: string
+          format: uuid
+          description: Specific collection to search (optional)
+        options:
+          type: object
+          properties:
+            top_k:
+              type: integer
+              minimum: 1
+              maximum: 20
+              default: 5
+              description: Number of similar chunks to retrieve
+            temperature:
+              type: number
+              minimum: 0.0
+              maximum: 2.0
+              default: 0.7
+              description: LLM temperature for response generation
+            max_tokens:
+              type: integer
+              minimum: 50
+              maximum: 2000
+              default: 500
+              description: Maximum tokens in LLM response
+
+    RAGResponse:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Original query
+        response:
+          type: string
+          description: Generated response
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentChunk'
+          description: Source chunks used for the response
+        metadata:
+          type: object
+          properties:
+            tokens_used:
+              type: integer
+            cost:
+              type: number
+            response_time_ms:
+              type: integer
+            model_used:
+              type: string
+            confidence_score:
+              type: number
+
+    DocumentChunk:
+      type: object
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+        metadata:
+          type: object
+        similarity:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    WorkflowTemplate:
+      type: object
+      required:
+        - id
+        - name
+        - domain
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        domain:
+          type: string
+        active:
+          type: boolean
+        nodes:
+          type: array
+          items:
+            type: object
+        connections:
+          type: object
+        settings:
+          type: object
+
+    Analytics:
+      type: object
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        time_range:
+          type: string
+          enum: [24h, 7d, 30d, 90d]
+        metrics:
+          type: object
+          properties:
+            total_queries:
+              type: integer
+            total_documents:
+              type: integer
+            total_tokens:
+              type: integer
+            total_cost:
+              type: number
+            avg_response_time:
+              type: number
+            success_rate:
+              type: number
+        trends:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              value:
+                type: number
+              metric:
+                type: string
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          description: Additional error details
+        request_id:
+          type: string
+          description: Unique request identifier for debugging
+
+paths:
+  # Project Management Endpoints
+  /projects:
+    get:
+      summary: List projects
+      description: Retrieve all projects for the authenticated user
+      tags:
+        - Projects
+      parameters:
+        - name: domain
+          in: query
+          schema:
+            type: string
+          description: Filter projects by domain
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: Filter projects by status
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create project
+      description: Create a new RAG project
+      tags:
+        - Projects
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - domain
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                description:
+                  type: string
+                  maxLength: 500
+                domain:
+                  type: string
+                  enum: [legal, hr, finance, healthcare, manufacturing, technology, general]
+                subdomain:
+                  type: string
+                  maxLength: 100
+                config:
+                  type: object
+                compliance_flags:
+                  type: array
+                  items:
+                    type: string
+                token_budget:
+                  type: integer
+                  minimum: 1000
+                  maximum: 10000000
+                  default: 50000
+      responses:
+        '201':
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /projects/{projectId}:
+    get:
+      summary: Get project
+      description: Retrieve a specific project by ID
+      tags:
+        - Projects
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update project
+      description: Update an existing project
+      tags:
+        - Projects
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                config:
+                  type: object
+                compliance_flags:
+                  type: array
+                  items:
+                    type: string
+                token_budget:
+                  type: integer
+      responses:
+        '200':
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete project
+      description: Delete a project and all associated data
+      tags:
+        - Projects
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Project deleted successfully
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Document Management Endpoints
+  /projects/{projectId}/documents:
+    get:
+      summary: List project documents
+      description: Get all documents for a specific project
+      tags:
+        - Documents
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Document'
+
+    post:
+      summary: Upload document
+      description: Upload a new document for processing
+      tags:
+        - Documents
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Document file to upload
+                metadata:
+                  type: string
+                  description: JSON string with additional metadata
+      responses:
+        '201':
+          description: Document uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+
+  # RAG Query Endpoints
+  /rag/query:
+    post:
+      summary: Execute RAG query
+      description: Perform a retrieval-augmented generation query
+      tags:
+        - RAG
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RAGQuery'
+      responses:
+        '200':
+          description: RAG response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RAGResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Workflow Endpoints
+  /workflows/templates:
+    get:
+      summary: List workflow templates
+      description: Get available workflow templates
+      tags:
+        - Workflows
+      parameters:
+        - name: domain
+          in: query
+          schema:
+            type: string
+          description: Filter templates by domain
+      responses:
+        '200':
+          description: List of workflow templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkflowTemplate'
+
+  /workflows/{workflowId}/execute:
+    post:
+      summary: Execute workflow
+      description: Start execution of a workflow
+      tags:
+        - Workflows
+      parameters:
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                input_data:
+                  type: object
+                  description: Input data for workflow execution
+      responses:
+        '202':
+          description: Workflow execution started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  execution_id:
+                    type: string
+                  status:
+                    type: string
+                  started_at:
+                    type: string
+                    format: date-time
+
+  # Analytics Endpoints
+  /projects/{projectId}/analytics:
+    get:
+      summary: Get project analytics
+      description: Retrieve analytics data for a project
+      tags:
+        - Analytics
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: time_range
+          in: query
+          schema:
+            type: string
+            enum: [24h, 7d, 30d, 90d]
+            default: 7d
+        - name: metrics
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          description: Specific metrics to include
+      responses:
+        '200':
+          description: Analytics data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Analytics'
+
+  # Health Check
+  /health:
+    get:
+      summary: Health check
+      description: Check API health status
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+                  uptime:
+                    type: number
+
+tags:
+  - name: Projects
+    description: Project management operations
+  - name: Documents
+    description: Document upload and processing
+  - name: RAG
+    description: Retrieval-Augmented Generation queries
+  - name: Workflows
+    description: Workflow automation and management
+  - name: Analytics
+    description: Analytics and monitoring data
+  - name: System
+    description: System health and status

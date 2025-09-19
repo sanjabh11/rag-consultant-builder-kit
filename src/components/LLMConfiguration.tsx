@@ -43,32 +43,59 @@ const LLMConfiguration = () => {
     loadConfigurations();
   }, [currentTenant]);
 
-  const loadConfigurations = async () => {
+  const loadConfigurations = useEffect(() => {
     if (!currentTenant || !hasPermission('llm', 'read')) return;
 
+    loadLLMConfigs();
+  }, [currentTenant, hasPermission]);
+
+  const loadLLMConfigs = async () => {
     try {
-      // For now, we'll use a mock configuration since the table doesn't exist
-      const mockConfigs: LLMConfig[] = [
-        {
-          id: '1',
-          name: 'OpenAI GPT-4',
-          provider: 'openai',
-          model: 'gpt-4',
-          configuration: {
-            temperature: 0.7,
-            max_tokens: 2048,
-            top_p: 1,
-            frequency_penalty: 0,
-            presence_penalty: 0
+      // Load from local storage first
+      const localConfigs = localStorage.getItem(`llm_configs_${currentTenant?.id}`);
+      let loadedConfigs: LLMConfig[] = [];
+
+      if (localConfigs) {
+        loadedConfigs = JSON.parse(localConfigs);
+      } else {
+        // Initialize with default local configurations
+        loadedConfigs = [
+          {
+            id: 'local-1',
+            name: 'Local LLM (Browser)',
+            provider: 'local',
+            endpoint_url: 'browser://local',
+            api_key_encrypted: '',
+            model: 'local-model',
+            configuration: {
+              temperature: 0.7,
+              max_tokens: 512,
+            },
+            is_active: true
           },
-          is_active: true
-        }
-      ];
-      
-      setConfigs(mockConfigs);
-      
-      if (mockConfigs.length > 0 && !selectedConfig) {
-        setSelectedConfig(mockConfigs.find(c => c.is_active) || mockConfigs[0]);
+          {
+            id: 'openai-1',
+            name: 'OpenAI GPT-3.5',
+            provider: 'openai',
+            endpoint_url: 'https://api.openai.com/v1',
+            api_key_encrypted: process.env.REACT_APP_OPENAI_API_KEY || '',
+            model: 'gpt-3.5-turbo',
+            configuration: {
+              temperature: 0.7,
+              max_tokens: 2048,
+            },
+            is_active: false
+          }
+        ];
+
+        // Save default configs to local storage
+        localStorage.setItem(`llm_configs_${currentTenant?.id}`, JSON.stringify(loadedConfigs));
+      }
+
+      setConfigs(loadedConfigs);
+
+      if (loadedConfigs.length > 0 && !selectedConfig) {
+        setSelectedConfig(loadedConfigs.find(c => c.is_active) || loadedConfigs[0]);
       }
     } catch (error) {
       console.error('Error loading LLM configurations:', error);
@@ -85,7 +112,7 @@ const LLMConfiguration = () => {
 
     try {
       setLoading(true);
-      
+
       // Mock save - in real implementation this would save to database
       toast({
         title: "Configuration Saved",

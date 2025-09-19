@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import LocalRAGChat from "./LocalRAGChat";
 import CloudRAGChat from "./CloudRAGChat";
+import EnhancedLocalRAGChat from "./EnhancedLocalRAGChat";
 import { MessageSquare, HardDrive, Cloud } from "lucide-react";
 
 interface RAGChatInterfaceProps {
@@ -25,16 +26,20 @@ const RAGChatInterface: React.FC<RAGChatInterfaceProps> = ({ projectId }) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col p-0">
-        <Tabs defaultValue={user ? "cloud" : "local"} className="flex-1 flex flex-col">
+        <Tabs defaultValue={user ? "cloud" : "enhanced"} className="flex-1 flex flex-col">
           <div className="px-4 pb-2">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="cloud" disabled={!user} className="flex items-center gap-2">
                 <Cloud className="h-4 w-4" />
                 Cloud RAG {!user && "(Login Required)"}
               </TabsTrigger>
+              <TabsTrigger value="enhanced" className="flex items-center gap-2">
+                <HardDrive className="h-4 w-4" />
+                Enhanced Local
+              </TabsTrigger>
               <TabsTrigger value="local" className="flex items-center gap-2">
                 <HardDrive className="h-4 w-4" />
-                Local RAG
+                Basic Local
               </TabsTrigger>
             </TabsList>
           </div>
@@ -51,6 +56,10 @@ const RAGChatInterface: React.FC<RAGChatInterfaceProps> = ({ projectId }) => {
                 </div>
               </div>
             )}
+          </TabsContent>
+          
+          <TabsContent value="enhanced" className="flex-1 m-0">
+            <EnhancedLocalRAGChat projectId={projectId} />
           </TabsContent>
           
           <TabsContent value="local" className="flex-1 m-0">
